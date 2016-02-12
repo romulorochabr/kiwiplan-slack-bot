@@ -1,0 +1,22 @@
+{
+  "name": "kiwiplan-slack-bot",
+  "version": "0.0.1",
+  "description": "Slack bot used in Kiwiplan teams",
+  "main": "bot.js",
+  "scripts": {
+    "test": "node bot.js",
+    "start": "node bot.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haoyangnz/kiwiplan-slack-bot.git"
+  },
+  "author": "haoyangnz",
+  "license": "BSD-2-Clause",
+  "bugs": {
+    "url": "https://github.com/haoyangnz/kiwiplan-slack-bot/issues"
+  },
+  "dependencies": {
+    "botkit": "0.0.5"
+  }
+}
