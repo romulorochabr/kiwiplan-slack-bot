@@ -4,8 +4,8 @@
   "description": "Slack bot used in Kiwiplan teams",
   "main": "bot.js",
   "scripts": {
-    "test": "node bot.js",
-    "start": "node bot.js"
+    "test": "nodejs bot.js",
+    "start": "nodejs bot.js"
   },
   "repository": {
     "type": "git",
