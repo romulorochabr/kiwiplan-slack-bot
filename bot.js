@@ -1,4 +1,6 @@
 var Botkit = require('botkit');
+var fs = require('fs');
+var glob = require('glob');
 
 var controller = Botkit.slackbot({ debug : false });
 
@@ -19,6 +21,7 @@ var bots = {
 	trello: 'B0HSGEXF1'
 }
 
+var vmids = ['haoyang', 'ushal', 'michelle'];
 
 controller.on('bot_message', function(bot, message) {
 	if (message.channel == channels.planning && message.bot_id == bots.trello && message.attachments && message.attachments[0] && message.attachments[0].text && message.attachments[0].text.indexOf('Melody') > -1 && message.attachments[0].text.match(/\d{6}/g)) {
@@ -31,5 +34,12 @@ controller.hears('Hi', ['direct_message'], function(bot, message) {
 });
 
 setInterval(function() {
-	bot.say({ channel: channels.testjack, text: 'Testing jack. Please ignore.'});
-}, 3000);
+	glob('/vmlock/*.8.31', null, function(err, files) {
+		fs.stat(files[0], function(err, stats) {
+			if ((new Date()) - stats.ctime > 300000) {
+				var user = vmids[Number(files[0].split('/')[2].split('.')[0])];
+				bot.say({ channel: channels.dev, text: '<@' + user + '>: Your vmscript seems to be locked.' });
+			}
+		});
+	})
+}, 300000);

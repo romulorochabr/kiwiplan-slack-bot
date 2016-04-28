@@ -17,6 +17,7 @@
     "url": "https://github.com/haoyangnz/kiwiplan-slack-bot/issues"
   },
   "dependencies": {
-    "botkit": "0.0.5"
+    "botkit": "0.0.5",
+    "glob": "~7.0.3"
   }
 }
