@@ -21,7 +21,7 @@ var bots = {
 	trello: 'B0HSGEXF1'
 }
 
-var vmids = ['haoyang', 'ushal', 'michelle'];
+var vmids = ['haoyang', 'ushal', 'michelle', 'aaron'];
 
 controller.on('bot_message', function(bot, message) {
 	if (message.channel == channels.planning && message.bot_id == bots.trello && message.attachments && message.attachments[0] && message.attachments[0].text && message.attachments[0].text.indexOf('Melody') > -1 && message.attachments[0].text.match(/\d{6}/g)) {
