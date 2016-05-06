@@ -13,6 +13,7 @@ bot.startRTM();
 var channels = {
 	testjack: 'C14N0EPGC',
 	dev: 'C0L4PU8S1',
+	vm: 'C16HEPJTV',
 	qapreview: 'C0M20LYJF',
 	planning: 'C0JAB2CAD'
 };
@@ -38,7 +39,7 @@ setInterval(function() {
 		fs.stat(files[0], function(err, stats) {
 			if ((new Date()) - stats.ctime > 300000) {
 				var user = vmids[Number(files[0].split('/')[2].split('.')[0])];
-				bot.say({ channel: channels.dev, text: '<@' + user + '>: Your vmscript seems to be locked.' });
+				bot.say({ channel: channels.vm, text: '<@' + user + '>: Your vmscript seems to be locked.' });
 			}
 		});
 	})
