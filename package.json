@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "botkit": "0.0.5",
-    "glob": "~7.0.3"
+    "glob": "~7.0.3",
+    "node-trello": "~1.1.2",
+    "lodash": "~4.13.1"
   }
 }
