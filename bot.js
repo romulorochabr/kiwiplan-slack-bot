@@ -34,12 +34,27 @@ controller.hears('Hi', ['direct_message'], function(bot, message) {
 	bot.reply(message, 'Hi');
 });
 
+controller.on('ambient', function(bot, message) {
+	if (message.channel == channels.testjack) {
+		if (message.text.indexOf("echo") == 0) {
+			bot.reply(message,{
+				text: JSON.stringify(message, null, 2),
+				username: "Echo",
+				icon_emoji: ":radio:"
+			});
+		}
+		else if (message.text.indexOf("log") == 0) {
+			console.log(JSON.stringify(message, null, 2));
+		}
+	}
+});
+
 setInterval(function() {
 	glob('/vmlock/*.8.31', null, function(err, files) {
 		fs.stat(files[0], function(err, stats) {
 			if ((new Date()) - stats.ctime > 300000) {
 				var user = vmids[Number(files[0].split('/')[2].split('.')[0])];
-				bot.say({ channel: channels.vm, text: '<@' + user + '>: Your vmscript seems to be locked.' });
+				bot.say({ channel: channels.testjack, text: '<!channel>: ' + '<@' + user + '>\'s vm script is locked.' });
 			}
 		});
 	})
