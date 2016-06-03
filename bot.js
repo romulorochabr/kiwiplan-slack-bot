@@ -23,79 +23,20 @@ bot.startRTM();
 // Access Trello
 var trello = new Trello('3c3032368c3c88ac3ba8799f3e37d935', 'ee99dec582dbbbacf02f864f93cc3c2771d521203c36563f482f886734f22f6c');
 
-// Trello Utility
-var tlists = function(cb) {
-	trello.get('/1/boards/' + boards.ult + '/lists', { filter: 'open', fields: 'name' }, function(err, lists) {
-		cb(lists);
-	});
-};
-var tcards = function(listnameprefix, cb) {
-	tlists(function(lists) {
-		var devlistid = _.find(lists, function(list) { return list.name.indexOf(listnameprefix) > -1; }).id;
-		trello.get('/1/lists/' + devlistid + '/cards', { filter: 'open', fields: 'name,idMembers,desc' }, function(err, cards) {
-			cb(cards);
-		});
-	});
-};
-
-// SCM Utility
-var trackurl = 'https://kall.kiwiplan.co.nz/scm/timetracker/track.do';
-var newscmurl = 'https://kall.kiwiplan.co.nz/scm/development/newSoftwareChange.do';
-var newtsurl = function(scmid) { return 'https://kall.kiwiplan.co.nz/scm/development/newTechnicalSpecificationTask.do?softwareChangeId=' + scmid; }
-var newpturl = function(scmid) { return 'https://kall.kiwiplan.co.nz/scm/common/newProgrammingTask.do?softwareChangeId=' + scmid; }
-var scmurl = function(scmid) { return 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?softwareChangeId=' + scmid; }
-var trackstart = function() {
-	request.post({ url: trackurl, form: { id: 157909, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Start Tracking' }, headers: { Cookie: 'JSESSIONID=aaap95OIUMV8id2yAgWtv' } }, function(err, res, body) {});
-};
-var trackstop = function() {
-	request.post({ url: trackurl, form: { id: 157909, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Stop Tracking' }, headers: { Cookie: 'JSESSIONID=aaap95OIUMV8id2yAgWtv' } }, function(err, res, body) {});
-};
-var newscm = function(title, desc, hours, cb) {
-/*
-	var assignee = 9118;
-	request.post({
-		url: newscmurl,
-		form: { project: 67, iteration: 0, title: title, description: desc, applications: 70, _applications: 1, reportedRevisions: 2108, _reportedRevisions: 1, targetedRevisions: 2108, _targetedRevisions: 1, type: 'MAINTENANCE', estimatedImplementationHours: hours, priority: 'UNPRIORITISED' },
-		headers: { Cookie: 'JSESSIONID=aaap95OIUMV8id2yAgWtv' }
-	}, function(err, res, body) {
-		var scmid = body.match(/softwareChangeId=(\d*)/)[1];
-		request.post({
-			url: newtsurl(scmid),
-			form: { title: 'Technical Planning', description: 'Technical Planning', hoursEstimated: Math.round(hours / 3 * 2), assignee: assignee },
-			headers: { Cookie: 'JSESSIONID=aaap95OIUMV8id2yAgWtv' }
-		}, function(err, res, body) {
-			request.post({
-				url: newpturl(scmid),
-				form: { title: title, description: desc, application: 70, component: 524, module: 2940, targetedRevisions: 2108, _targetedRevisions: 1, hoursEstimated: Math.round(hours / 3 * 1), assignee: assignee },
-				headers: { Cookie: 'JSESSIONID=aaap95OIUMV8id2yAgWtv' }
-			}, function(err, res, body) {
-*/
-var scmid = 39525;
-				request.get({
-					url: scmurl(scmid),
-					headers: { Cookie: 'JSESSIONID=aaap95OIUMV8id2yAgWtv' }
-				}, function(err, res, body) {
-					var sc = body.match(/<title>SCM - (\d{6})/)[1];
-					cb(sc);
-				});
-/*
-			});
-		});
-	});
-*/
-}
-
 // User IDs
 var users = {
 	haoyang: {
 		name: 'haoyang',
 		slack: 'U0HMLSLKY',
-		trello: '53ed667b3f5d4e4c4e1c5902'
+		trello: '53ed667b3f5d4e4c4e1c5902',
+		scmcookie: process.env.scmcookiehaoyang,
+		slacktoken: process.env.slacktokenhaoyang
 	},
 	ushal: {
 		name: 'ushal',
 		slack: 'U0HMMNE9W',
-		trello: '563fc2beb2e713d534da52ce'
+		trello: '563fc2beb2e713d534da52ce',
+		scmcookie: process.env.scmcookieushal
 	},
 	melody: {
 		name: 'melody',
@@ -130,6 +71,85 @@ var boards = {
 	ult: 'OckJNZuy'
 }
 
+// Trello Utility
+var tlists = function(cb) {
+	trello.get('/1/boards/' + boards.ult + '/lists', { filter: 'open', fields: 'name' }, function(err, lists) {
+		cb(lists);
+	});
+};
+var tcards = function(listnameprefix, cb) {
+	tlists(function(lists) {
+		var devlistid = _.find(lists, function(list) { return list.name.indexOf(listnameprefix) > -1; }).id;
+		trello.get('/1/lists/' + devlistid + '/cards', { filter: 'open', fields: 'name,idMembers,desc' }, function(err, cards) {
+			cb(cards);
+		});
+	});
+};
+
+// SCM Utility
+var trackurl = 'https://kall.kiwiplan.co.nz/scm/timetracker/track.do';
+var newscmurl = 'https://kall.kiwiplan.co.nz/scm/development/newSoftwareChange.do';
+var newtsurl = function(scmid) { return 'https://kall.kiwiplan.co.nz/scm/development/newTechnicalSpecificationTask.do?softwareChangeId=' + scmid; }
+var newpturl = function(scmid) { return 'https://kall.kiwiplan.co.nz/scm/common/newProgrammingTask.do?softwareChangeId=' + scmid; }
+var scmurl = function(scmid) { return 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?softwareChangeId=' + scmid; }
+var trackstart = function() {
+	request.post({ url: trackurl, form: { id: 157909, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Start Tracking' }, headers: { Cookie: users.haoyang.scmcookie } }, function(err, res, body) {});
+};
+var trackstop = function() {
+	request.post({ url: trackurl, form: { id: 157909, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Stop Tracking' }, headers: { Cookie: users.haoyang.scmcookie } }, function(err, res, body) {});
+};
+var newscm = function(title, desc, hours, cb) {
+/*
+	var assignee = 9118;
+	request.post({
+		url: newscmurl,
+		form: { project: 67, iteration: 0, title: title, description: desc, applications: 70, _applications: 1, reportedRevisions: 2108, _reportedRevisions: 1, targetedRevisions: 2108, _targetedRevisions: 1, type: 'MAINTENANCE', estimatedImplementationHours: hours, priority: 'UNPRIORITISED' },
+		headers: { Cookie: users.haoyang.scmcookie }
+	}, function(err, res, body) {
+		var scmid = body.match(/softwareChangeId=(\d*)/)[1];
+		request.post({
+			url: newtsurl(scmid),
+			form: { title: 'Technical Planning', description: 'Technical Planning', hoursEstimated: Math.round(hours / 3 * 2), assignee: assignee },
+			headers: { Cookie: users.haoyang.scmcookie }
+		}, function(err, res, body) {
+			request.post({
+				url: newpturl(scmid),
+				form: { title: title, description: desc, application: 70, component: 524, module: 2940, targetedRevisions: 2108, _targetedRevisions: 1, hoursEstimated: Math.round(hours / 3 * 1), assignee: assignee },
+				headers: { Cookie: users.haoyang.scmcookie }
+			}, function(err, res, body) {
+*/
+var scmid = 39525;
+				request.get({
+					url: scmurl(scmid),
+					headers: { Cookie: users.haoyang.scmcookie }
+				}, function(err, res, body) {
+					var sc = body.match(/<title>SCM - (\d{6})/)[1];
+					cb(sc);
+				});
+/*
+			});
+		});
+	});
+*/
+}
+
+// Slack Utility
+// - Join channel if exists, create if doesn't
+// - name : Name of channel to join (may be new)
+// - purpose : Purpose and Topic to set on the channel
+// - members : Array of user objects that have property `slack` which is the slack user id
+var joinchannel = function(name, purpose, members) {
+	request.post({ url: 'https://slack.com/api/channels.join', form: { token: users.haoyang.slacktoken, name: name } }, function(err, res, body) {
+		var bodyjson = eval('(' + body + ')');
+		var channelid = bodyjson.channel.id;
+		_.each(members, function(member) {
+			request.post({ url: 'https://slack.com/api/channels.invite', form: { token: users.haoyang.slacktoken, channel: channelid, user: member.slack } });
+		});
+		request.post({ url: 'https://slack.com/api/channels.setTopic', form: { token: users.haoyang.slacktoken, channel: channelid, topic: purpose } });
+		request.post({ url: 'https://slack.com/api/channels.setPurpose', form: { token: users.haoyang.slacktoken, channel: channelid, topic: purpose } });
+	});
+};
+
 // DM Ping
 controller.hears('Hi', ['direct_message'], function(bot, message) {
 	bot.reply(message, 'Hi');
@@ -139,8 +159,7 @@ controller.hears('Hi', ['direct_message'], function(bot, message) {
 controller.hears('trello', ['direct_message'], function(bot, message) {
 	tcards('Dev Sprint', function(cards) {
 		var mycards = _.filter(cards, function(card) { return _.includes(card.idMembers, s2t(message.user)) });
-		//bot.reply(message, string(_.map(mycards, 'name')));
-		bot.reply(message, string(mycards));
+		bot.reply(message, string(_.map(mycards, 'name')));
 	});
 });
 
@@ -196,6 +215,7 @@ setInterval(function() {
 				if (!card.name.match(/\d{6}/)) {
 					newscm(card.desc, card.desc, card.name.match(/\((\d*)\)/)[1] * 10, function(sc) {
 						trello.put('/1/cards/' + card.id + '/name', { value: card.name + ' ' + sc }, function(err) {});
+						joinchannel(card.name.match(/(^| )([a-z\-]*)($| )/)[2], 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + sc, users);
 					});
 				}
 				trello.post('/1/cards/' + card.id + '/idMembers', { value: n2t(usertoassign) }, function(err) {});
