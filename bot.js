@@ -257,7 +257,7 @@ setInterval(function() {
 // VM Warnings
 var vmids = ['haoyang', 'ushal', 'michelle', 'aaron'];
 setInterval(function() {
-	glob('/vmlock/*.8.31', null, function(err, files) {
+	glob('/vmlock/*.8.40', null, function(err, files) {
 		fs.stat(files[0], function(err, stats) {
 			if ((new Date()) - stats.ctime > 300000) {
 				var user = vmids[Number(files[0].split('/')[2].split('.')[0])];
