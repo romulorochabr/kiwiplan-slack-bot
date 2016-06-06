@@ -99,7 +99,8 @@ var trackstop = function() {
 	request.post({ url: trackurl, form: { id: 157909, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Stop Tracking' }, headers: { Cookie: users.haoyang.scmcookie } }, function(err, res, body) {});
 };
 var newscm = function(title, desc, hours, cb) {
-/*
+	// TODO Determine assignee
+	// TODO Use different cookies
 	var assignee = 9118;
 	request.post({
 		url: newscmurl,
@@ -114,11 +115,10 @@ var newscm = function(title, desc, hours, cb) {
 		}, function(err, res, body) {
 			request.post({
 				url: newpturl(scmid),
+				// TODO Determine targeted rev
 				form: { title: title, description: desc, application: 70, component: 524, module: 2940, targetedRevisions: 2108, _targetedRevisions: 1, hoursEstimated: Math.round(hours / 3 * 1), assignee: assignee },
 				headers: { Cookie: users.haoyang.scmcookie }
 			}, function(err, res, body) {
-*/
-var scmid = 39525;
 				request.get({
 					url: scmurl(scmid),
 					headers: { Cookie: users.haoyang.scmcookie }
@@ -126,11 +126,9 @@ var scmid = 39525;
 					var sc = body.match(/<title>SCM - (\d{6})/)[1];
 					cb(sc);
 				});
-/*
 			});
 		});
 	});
-*/
 }
 
 // Slack Utility
@@ -171,6 +169,16 @@ controller.hears('stop', ['direct_message'], function(bot, message) {
 	trackstop();
 });
 
+// DM SCM Alive
+controller.hears('scm', ['direct_message'], function(bot, message) {
+	request.get({
+		url: scmurl(39492),
+		headers: { Cookie: users.haoyang.scmcookie }
+	}, function(err, res, body) {
+		bot.reply(message, body.match(/<title>SCM - (\d{6})/) ? 'SCM link active' : 'SCM link inactive');
+	});
+});
+
 // Ambient Handler
 controller.on('ambient', function(bot, message) {
 	if (message.channel == channels.testjack) {
@@ -197,7 +205,7 @@ controller.on('bot_message', function(bot, message) {
 // SCM Integration
 var scmusers = ['haoyang', 'ushal'];
 setInterval(function() {
-	tcards('Test', function(cards) {
+	tcards('Dev', function(cards) {
 		// XXX This implementation is a bit unpleasant
 		var userstoassign = _.clone(scmusers);
 		var priorityassignee = _.clone(scmusers);
@@ -212,11 +220,16 @@ setInterval(function() {
 				var usertoassign = _.sample(_.isEmpty(priorityassignee) ? userstoassign : priorityassignee);
 				_.pull(priorityassignee, usertoassign);
 				_.pull(userstoassign, usertoassign);
+				// FIXME This might match on a Kall number which still needs SCM created
 				if (!card.name.match(/\d{6}/)) {
 					newscm(card.desc, card.desc, card.name.match(/\((\d*)\)/)[1] * 10, function(sc) {
 						trello.put('/1/cards/' + card.id + '/name', { value: card.name + ' ' + sc }, function(err) {});
 						joinchannel(card.name.match(/(^| )([a-z\-]*)($| )/)[2], 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + sc, users);
 					});
+				}
+				else {
+					var sc = card.name.match(/\d{6}/)[0];
+					joinchannel(card.name.match(/(^| )([a-z\-]*)($| )/)[2], 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + sc, users);
 				}
 				trello.post('/1/cards/' + card.id + '/idMembers', { value: n2t(usertoassign) }, function(err) {});
 			}
@@ -229,7 +242,17 @@ setInterval(function() {
 			return !_.isEmpty(userstoassign);
 		});
 	});
-}, 5000);
+}, 60000);
+
+// SCM Keep alive
+setInterval(function() {
+	request.get({
+		url: scmurl(39492),
+		headers: { Cookie: users.haoyang.scmcookie }
+	}, function(err, res, body) {
+		console.log("SCM Cookie renewed");
+	});
+}, 21600000);
 
 // VM Warnings
 var vmids = ['haoyang', 'ushal', 'michelle', 'aaron'];
