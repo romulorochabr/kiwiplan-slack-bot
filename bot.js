@@ -229,7 +229,7 @@ setInterval(function() {
 				}
 				else {
 					var sc = card.name.match(/\d{6}/)[0];
-					joinchannel(card.name.match(/(^| )([a-z\-]*)($| )/)[2], 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + sc, users);
+					joinchannel(card.name.match(/(^| )([a-z1-9]*-[a-z1-9\-]*)($| )/)[2], 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + sc, users);
 				}
 				trello.post('/1/cards/' + card.id + '/idMembers', { value: n2t(usertoassign) }, function(err) {});
 			}
