@@ -29,6 +29,7 @@ var users = {
 		name: 'haoyang',
 		slack: 'U0HMLSLKY',
 		trello: '53ed667b3f5d4e4c4e1c5902',
+		scm: 9118,
 		scmcookie: process.env.scmcookiehaoyang,
 		slacktoken: process.env.slacktokenhaoyang
 	},
@@ -36,12 +37,17 @@ var users = {
 		name: 'ushal',
 		slack: 'U0HMMNE9W',
 		trello: '563fc2beb2e713d534da52ce',
+		scm: 11729,
 		scmcookie: process.env.scmcookieushal
 	},
 	melody: {
 		name: 'melody',
 		slack: 'U0J4CGQKW',
 		trello: '5578c1e12f582a666e7bca4a'
+	},
+	jack: {
+		name: 'jack',
+		slack: 'U0M20CGS1'
 	}
 };
 var t2n = function(t) {
@@ -50,8 +56,14 @@ var t2n = function(t) {
 var n2t = function(n) {
 	return _.find(users, { name: n }).trello;
 };
+var n2u = function(n) {
+	return _.find(users, { name: n });
+};
 var s2t = function(s) {
 	return _.find(users, { slack: s }).trello;
+};
+var s2u = function(s) {
+	return _.find(users, { slack: s });
 };
 
 // Slack IDs
@@ -98,30 +110,27 @@ var trackstart = function() {
 var trackstop = function() {
 	request.post({ url: trackurl, form: { id: 157909, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Stop Tracking' }, headers: { Cookie: users.haoyang.scmcookie } }, function(err, res, body) {});
 };
-var newscm = function(title, desc, hours, cb) {
-	// TODO Determine assignee
-	// TODO Use different cookies
-	var assignee = 9118;
+var newscm = function(user, title, desc, hours, cb) {
 	request.post({
 		url: newscmurl,
 		form: { project: 67, iteration: 0, title: title, description: desc, applications: 70, _applications: 1, reportedRevisions: 2108, _reportedRevisions: 1, targetedRevisions: 2108, _targetedRevisions: 1, type: 'MAINTENANCE', estimatedImplementationHours: hours, priority: 'UNPRIORITISED' },
-		headers: { Cookie: users.haoyang.scmcookie }
+		headers: { Cookie: user.scmcookie }
 	}, function(err, res, body) {
 		var scmid = body.match(/softwareChangeId=(\d*)/)[1];
 		request.post({
 			url: newtsurl(scmid),
-			form: { title: 'Technical Planning', description: 'Technical Planning', hoursEstimated: Math.round(hours / 3 * 2), assignee: assignee },
-			headers: { Cookie: users.haoyang.scmcookie }
+			form: { title: 'Technical Planning', description: 'Technical Planning', hoursEstimated: Math.round(hours / 3 * 2), assignee: user.scm },
+			headers: { Cookie: user.scmcookie }
 		}, function(err, res, body) {
 			request.post({
 				url: newpturl(scmid),
 				// TODO Determine targeted rev
-				form: { title: title, description: desc, application: 70, component: 524, module: 2940, targetedRevisions: 2108, _targetedRevisions: 1, hoursEstimated: Math.round(hours / 3 * 1), assignee: assignee },
-				headers: { Cookie: users.haoyang.scmcookie }
+				form: { title: title, description: desc, application: 70, component: 524, module: 2940, targetedRevisions: 2108, _targetedRevisions: 1, hoursEstimated: Math.round(hours / 3 * 1), assignee: user.scm },
+				headers: { Cookie: user.scmcookie }
 			}, function(err, res, body) {
 				request.get({
 					url: scmurl(scmid),
-					headers: { Cookie: users.haoyang.scmcookie }
+					headers: { Cookie: user.scmcookie }
 				}, function(err, res, body) {
 					var sc = body.match(/<title>SCM - (\d{6})/)[1];
 					cb(sc);
@@ -173,7 +182,7 @@ controller.hears('stop', ['direct_message'], function(bot, message) {
 controller.hears('scm', ['direct_message'], function(bot, message) {
 	request.get({
 		url: scmurl(39492),
-		headers: { Cookie: users.haoyang.scmcookie }
+		headers: { Cookie: s2u(message.user).scmcookie }
 	}, function(err, res, body) {
 		bot.reply(message, body.match(/<title>SCM - (\d{6})/) ? 'SCM link active' : 'SCM link inactive');
 	});
@@ -181,6 +190,7 @@ controller.hears('scm', ['direct_message'], function(bot, message) {
 
 // Ambient Handler
 controller.on('ambient', function(bot, message) {
+	// Test Jack
 	if (message.channel == channels.testjack) {
 		if (message.text.indexOf("echo") == 0) {
 			bot.reply(message,{
@@ -192,6 +202,18 @@ controller.on('ambient', function(bot, message) {
 		else if (message.text.indexOf("log") == 0) {
 			console.log(JSON.stringify(message, null, 2));
 		}
+	}
+});
+
+// Slash Command Handler (Not used, just for reference)
+controller.on('slash_command', function(bot, message) {
+	if (message.command == 'up') {
+		bot.reply(message, 'I\'m here.');
+		bot.replyPublicDelayed(message, 'How can I help you?');
+	}
+	else if (message.command == 'whisper') {
+		bot.replyPrivate(message, 'Hello.');
+		bot.replyPrivateDelayed(message, 'How are you.');
 	}
 });
 
@@ -222,7 +244,7 @@ setInterval(function() {
 				_.pull(userstoassign, usertoassign);
 				// FIXME This might match on a Kall number which still needs SCM created
 				if (!card.name.match(/\d{6}/)) {
-					newscm(card.desc, card.desc, card.name.match(/\((\d*)\)/)[1] * 10, function(sc) {
+					newscm(n2u(usertoassign), card.desc, card.desc, card.name.match(/\((\d*)\)/)[1] * 10, function(sc) {
 						trello.put('/1/cards/' + card.id + '/name', { value: card.name + ' ' + sc }, function(err) {});
 						joinchannel(card.name.match(/(^| )([a-z\-]*)($| )/)[2], 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + sc, users);
 					});
@@ -249,6 +271,12 @@ setInterval(function() {
 	request.get({
 		url: scmurl(39492),
 		headers: { Cookie: users.haoyang.scmcookie }
+	}, function(err, res, body) {
+		console.log("SCM Cookie renewed");
+	});
+	request.get({
+		url: scmurl(39492),
+		headers: { Cookie: users.ushal.scmcookie }
 	}, function(err, res, body) {
 		console.log("SCM Cookie renewed");
 	});
