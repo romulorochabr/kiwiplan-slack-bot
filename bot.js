@@ -98,17 +98,61 @@ var tcards = function(listnameprefix, cb) {
 	});
 };
 
+// - Find code from card
+var tcode = function(card) {
+	return card.name.match(/(^| )([a-z1-9]*-[a-z1-9\-]*)($| )/)[2];
+};
+
+// - Find scm from card
+// FIXME This might match on a Kall number which still needs SCM created
+var tscm = function(card) {
+	var match = card.name.match(/\d{6}/);
+	return match ? match[0] : null;
+};
+	
+// - Find card by code
+// - cb(card)
+var tfcode = function(code, cb) {
+	tcards('Dev Sprint', function(cards) {
+		cb(_.find(cards, function(card) { return tcode(card) == code; }));
+	});
+};
+
+// - Find scm number by code
+// - cb(scm)
+var code2scm = function(code, cb) {
+	tfcode(code, function(card) {
+		cb(tscm(card));
+	});
+};
+
 // SCM Utility
 var trackurl = 'https://kall.kiwiplan.co.nz/scm/timetracker/track.do';
+var assignedurl = 'https://kall.kiwiplan.co.nz/scm/timetracker/assigned.do';
 var newscmurl = 'https://kall.kiwiplan.co.nz/scm/development/newSoftwareChange.do';
 var newtsurl = function(scmid) { return 'https://kall.kiwiplan.co.nz/scm/development/newTechnicalSpecificationTask.do?softwareChangeId=' + scmid; }
 var newpturl = function(scmid) { return 'https://kall.kiwiplan.co.nz/scm/common/newProgrammingTask.do?softwareChangeId=' + scmid; }
 var scmurl = function(scmid) { return 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?softwareChangeId=' + scmid; }
-var trackstart = function() {
-	request.post({ url: trackurl, form: { id: 157909, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Start Tracking' }, headers: { Cookie: users.haoyang.scmcookie } }, function(err, res, body) {});
+var scm2id = function(user, scm, cb) {
+	request.get({
+		url: assignedurl,
+		headers: { Cookie: user.scmcookie }
+	}, function(err, res, body) {
+		var id = body.match(new RegExp('\n.*' + scm + '(.|\n)*?id.*value="([0-9]*)".*\n'))[2];
+		//var id = body.match(/\n.*215067(.|\n)*?id.*value="([0-9]*)".*\n/)[2];
+		cb(id);
+	});
+}
+
+var trackstart = function(user, scm) {
+	scm2id(user, scm, function(id) {
+		request.post({ url: trackurl, form: { id: id, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Start Tracking' }, headers: { Cookie: user.scmcookie } }, function(err, res, body) {});
+	});
 };
-var trackstop = function() {
-	request.post({ url: trackurl, form: { id: 157909, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Stop Tracking' }, headers: { Cookie: users.haoyang.scmcookie } }, function(err, res, body) {});
+var trackstop = function(user, scm) {
+	scm2id(user, scm, function(id) {
+		request.post({ url: trackurl, form: { id: id, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Stop Tracking' }, headers: { Cookie: user.scmcookie } }, function(err, res, body) {});
+	});
 };
 var newscm = function(user, title, desc, hours, cb) {
 	request.post({
@@ -157,6 +201,14 @@ var joinchannel = function(name, purpose, members) {
 	});
 };
 
+// - Get Channel name by id
+// - cb(name)
+var channelname = function(id, cb) {
+	bot.api.channels.info({ channel: id }, function(err, res) {
+		cb(res.channel.name);
+	});
+};
+
 // DM Ping
 controller.hears('Hi', ['direct_message'], function(bot, message) {
 	bot.reply(message, 'Hi');
@@ -168,14 +220,6 @@ controller.hears('trello', ['direct_message'], function(bot, message) {
 		var mycards = _.filter(cards, function(card) { return _.includes(card.idMembers, s2t(message.user)) });
 		bot.reply(message, string(_.map(mycards, 'name')));
 	});
-});
-
-// DM Track
-controller.hears('start', ['direct_message'], function(bot, message) {
-	trackstart();
-});
-controller.hears('stop', ['direct_message'], function(bot, message) {
-	trackstop();
 });
 
 // DM SCM Alive
@@ -202,6 +246,20 @@ controller.on('ambient', function(bot, message) {
 		else if (message.text.indexOf("log") == 0) {
 			console.log(JSON.stringify(message, null, 2));
 		}
+	}
+	else if (message.text == 'start') {
+		channelname(message.channel, function(name) {
+			code2scm(name, function(scm) {
+				trackstart(s2u(message.user), scm);
+			});
+		});
+	}
+	else if (message.text == 'stop') {
+		channelname(message.channel, function(name) {
+			code2scm(name, function(scm) {
+				trackstop(s2u(message.user), scm);
+			});
+		});
 	}
 });
 
@@ -242,16 +300,14 @@ setInterval(function() {
 				var usertoassign = _.sample(_.isEmpty(priorityassignee) ? userstoassign : priorityassignee);
 				_.pull(priorityassignee, usertoassign);
 				_.pull(userstoassign, usertoassign);
-				// FIXME This might match on a Kall number which still needs SCM created
-				if (!card.name.match(/\d{6}/)) {
+				if (!tscm(card)) {
 					newscm(n2u(usertoassign), card.desc, card.desc, card.name.match(/\((\d*)\)/)[1] * 10, function(sc) {
 						trello.put('/1/cards/' + card.id + '/name', { value: card.name + ' ' + sc }, function(err) {});
 						joinchannel(card.name.match(/(^| )([a-z\-]*)($| )/)[2], 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + sc, users);
 					});
 				}
 				else {
-					var sc = card.name.match(/\d{6}/)[0];
-					joinchannel(card.name.match(/(^| )([a-z1-9]*-[a-z1-9\-]*)($| )/)[2], 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + sc, users);
+					joinchannel(tcode(card), 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + tscm(card), users);
 				}
 				trello.post('/1/cards/' + card.id + '/idMembers', { value: n2t(usertoassign) }, function(err) {});
 			}
