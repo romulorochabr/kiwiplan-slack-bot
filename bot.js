@@ -97,6 +97,9 @@ var tcards = function(listnameprefix, cb) {
 		});
 	});
 };
+var tassign = function(card, name) {
+	trello.put('/1/cards/' + card.id + '/idMembers', { value: n2t(name) }, function(err) {});
+}
 
 // - Find code from card
 var tcode = function(card) {
@@ -138,20 +141,20 @@ var scm2id = function(user, scm, cb) {
 		url: assignedurl,
 		headers: { Cookie: user.scmcookie }
 	}, function(err, res, body) {
-		var id = body.match(new RegExp('\n.*' + scm + '(.|\n)*?id.*value="([0-9]*)".*\n'))[2];
-		//var id = body.match(/\n.*215067(.|\n)*?id.*value="([0-9]*)".*\n/)[2];
-		cb(id);
+		var id = body.match(new RegExp('\n.*=' + scm + '(.|\n)*?id.*value="([0-9]*)".*\n'))[2];
+		var title = body.match(new RegExp('\n.*=' + scm + '(.|\n)*?<span.*\n[ \t]*(.*)[ \t]*\n'))[2];
+		cb(id, title);
 	});
 }
 
-var trackstart = function(user, scm) {
-	scm2id(user, scm, function(id) {
-		request.post({ url: trackurl, form: { id: id, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Start Tracking' }, headers: { Cookie: user.scmcookie } }, function(err, res, body) {});
+var trackstart = function(user, scm, cb) {
+	scm2id(user, scm, function(id, title) {
+		request.post({ url: trackurl, form: { id: id, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Start Tracking' }, headers: { Cookie: user.scmcookie } }, function(err, res, body) { cb(title); });
 	});
 };
-var trackstop = function(user, scm) {
-	scm2id(user, scm, function(id) {
-		request.post({ url: trackurl, form: { id: id, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Stop Tracking' }, headers: { Cookie: user.scmcookie } }, function(err, res, body) {});
+var trackstop = function(user, scm, cb) {
+	scm2id(user, scm, function(id, title) {
+		request.post({ url: trackurl, form: { id: id, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Stop Tracking' }, headers: { Cookie: user.scmcookie } }, function(err, res, body) { cb(title); });
 	});
 };
 var newscm = function(user, title, desc, hours, cb) {
@@ -250,14 +253,30 @@ controller.on('ambient', function(bot, message) {
 	else if (message.text == 'start') {
 		channelname(message.channel, function(name) {
 			code2scm(name, function(scm) {
-				trackstart(s2u(message.user), scm);
+				trackstart(s2u(message.user), scm, function(title) {
+					bot.reply(message, '<@' + s2u(message.user).name + '> started working on ' + title);
+				});
 			});
 		});
 	}
 	else if (message.text == 'stop') {
 		channelname(message.channel, function(name) {
 			code2scm(name, function(scm) {
-				trackstop(s2u(message.user), scm);
+				trackstop(s2u(message.user), scm, function(title) {
+					bot.reply(message, '<@' + s2u(message.user).name + '> stopped working on ' + title);
+				});
+			});
+		});
+	}
+	else if (message.text == 'coded') {
+		channelname(message.channel, function(name) {
+			tfcode(name, function(card) {
+				var reviewer = 'ushal';
+				if (s2u(message.user).name == 'ushal') {
+					reviewer = 'haoyang'
+				}
+				tassign(card, reviewer);
+				bot.reply(message, '<@' + reviewer + '>: Please review the code.');
 			});
 		});
 	}
@@ -309,7 +328,7 @@ setInterval(function() {
 				else {
 					joinchannel(tcode(card), 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + tscm(card), users);
 				}
-				trello.post('/1/cards/' + card.id + '/idMembers', { value: n2t(usertoassign) }, function(err) {});
+				tassign(card, usertoassign);
 			}
 			else {
 				for (var i = 0; i < card.idMembers.length; i++) {
@@ -323,7 +342,7 @@ setInterval(function() {
 }, 60000);
 
 // SCM Keep alive
-setInterval(function() {
+var scmkeepalive = function() {
 	request.get({
 		url: scmurl(39492),
 		headers: { Cookie: users.haoyang.scmcookie }
@@ -336,7 +355,9 @@ setInterval(function() {
 	}, function(err, res, body) {
 		console.log("SCM Cookie renewed");
 	});
-}, 21600000);
+};
+scmkeepalive();
+setInterval(scmkeepalive, 21600000);
 
 // VM Warnings
 var vmids = ['haoyang', 'ushal', 'michelle', 'aaron'];
