@@ -280,6 +280,30 @@ controller.on('ambient', function(bot, message) {
 			});
 		});
 	}
+	else if (message.text == 'reviewed') {
+		channelname(message.channel, function(name) {
+			tfcode(name, function(card) {
+				var coder = 'ushal';
+				if (s2u(message.user).name == 'ushal') {
+					coder = 'haoyang'
+				}
+				tassign(card, coder);
+				bot.reply(message, '<@' + coder + '>: Code reviewed, please address the feedback.');
+			});
+		});
+	}
+	else if (message.text == 'merged') {
+		channelname(message.channel, function(name) {
+			tfcode(name, function(card) {
+				var coder = 'ushal';
+				if (s2u(message.user).name == 'ushal') {
+					coder = 'haoyang'
+				}
+				tassign(card, coder);
+				bot.reply(message, '<@' + coder + '>: Code has been merged.');
+			});
+		});
+	}
 });
 
 // Slash Command Handler (Not used, just for reference)
