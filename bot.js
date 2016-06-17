@@ -136,6 +136,26 @@ var code2scm = function(code, cb) {
 };
 
 // GitLab Utility
+
+// - Find branch by prefix
+// - cb([branches])
+var findbranch = function(prefix, cb) {
+	request.get({
+		url: 'http://nzvult/api/v3/projects/' + inv + '/repository/branches',
+		headers: { 'PRIVATE-TOKEN': users.haoyang.gitlabtoken }
+	}, function(err, res, body) {
+		var bodyjson = eval('(' + body + ')');
+		cb(_.filter(bodyjson, function(branch) {
+			return branch.name.indexOf(prefix) >= 0;
+		}));
+	});
+}
+
+// - Get MR URL
+var mrurl = function(mrid) {
+	return 'http://nzvult/haoyang.feng/inv/merge_requests/' + mrid;
+}
+
 // - user: The user who coded the feature
 var newmr = function(user, card, source, target, cb) {
 	request.post({
@@ -144,13 +164,42 @@ var newmr = function(user, card, source, target, cb) {
 			id: inv,
 			target_branch: target,
 			source_branch: source,
-			title: tcode(card),
+			title: source,
 			description: 'ULT SCM ' + tscm(card) + ' - ' + card.desc + '\n' + user.name
 		},
 		headers: { 'PRIVATE-TOKEN': user.gitlabtoken }
 	}, function(err, res, body) {
 		var bodyjson = eval('(' + body + ')');
-		cb(bodyjson.iid);
+		if (!bodyjson.iid) newmr(user, card, source, target, cb);
+		else if (cb) cb(bodyjson.iid);
+	});
+}
+
+// - Find MR by title
+// - cb(mr)
+var findmr = function(title, cb) {
+	request.get({
+		url: 'http://nzvult/api/v3/projects/' + inv + '/merge_requests',
+		headers: { 'PRIVATE-TOKEN': users.haoyang.gitlabtoken }
+	}, function(err, res, body) {
+		var bodyjson = eval('(' + body + ')');
+		cb(_.find(bodyjson, { title: title }));
+	});
+}
+
+// - Merge MR by title
+// - cb()
+var mergemr = function(user, title, cb) {
+	findmr(title, function(mr) {
+		request.put({
+			url: 'http://nzvult/api/v3/projects/' + inv + '/merge_request/' + mr.id + '/merge',
+			form: { id: inv, merge_request_id: mr.id },
+			headers: { 'PRIVATE-TOKEN': user.gitlabtoken }
+		}, function(err, res, body) {
+			l('body', body);
+			// XXX This could potentially fail if there's conflict
+			cb();
+		});
 	});
 }
 
@@ -302,7 +351,7 @@ controller.on('ambient', function(bot, message) {
 				}
 				tassign(card, reviewer);
 				newmr(s2u(message.user), card, tcode(card), 'dev', function(mrid) {
-					bot.reply(message, '<@' + reviewer + '>: Please review the code: http://nzvult/haoyang.feng/inv/merge_requests/' + mrid + '/diffs');
+					bot.reply(message, '<@' + reviewer + '>: Please review the code: ' + mrurl(mrid) + '/diffs');
 				});
 			});
 		});
@@ -315,11 +364,27 @@ controller.on('ambient', function(bot, message) {
 					coder = 'haoyang'
 				}
 				tassign(card, coder);
-				bot.reply(message, '<@' + coder + '>: Code reviewed, please address the feedback.');
+				findmr(tcode(card), function(mr) {
+					bot.reply(message, '<@' + coder + '>: Code reviewed, please address the feedback: ' + mrurl(mr.iid));
+				});
 			});
 		});
 	}
-	else if (message.text == 'merged') {
+	else if (message.text == 'review') {
+		channelname(message.channel, function(name) {
+			tfcode(name, function(card) {
+				var reviewer = 'ushal';
+				if (s2u(message.user).name == 'ushal') {
+					reviewer = 'haoyang';
+				}
+				tassign(card, reviewer);
+				findmr(tcode(card), function(mr) {
+					bot.reply(message, '<@' + reviewer + '>: Please review the code: ' + mrurl(mr.iid));
+				});
+			});
+		});
+	}
+	else if (message.text == 'merge') {
 		channelname(message.channel, function(name) {
 			tfcode(name, function(card) {
 				var coder = 'ushal';
@@ -327,7 +392,29 @@ controller.on('ambient', function(bot, message) {
 					coder = 'haoyang'
 				}
 				tassign(card, coder);
-				bot.reply(message, '<@' + coder + '>: Code has been merged.');
+				mergemr(n2u(coder), tcode(card), function() {
+					// XXX This could potentially fail if there's conflict
+					bot.reply(message, '<@' + coder + '>: Code has been merged to dev.');
+				});
+			});
+		});
+	}
+	else if (message.text == 'test') {
+		channelname(message.channel, function(name) {
+			tfcode(name, function(card) {
+				findbranch(tcode(card), function(branches) {
+					_.each(branches, function(branch) {
+						if (branch.name == tcode(card)) {
+							// XXX Shouldn't be hard coding 8.40
+							newmr(s2u(message.user), card, branch.name, '8.40');
+						}
+						else {
+							newmr(s2u(message.user), card, branch.name, _.last(_.split(branch.name, '-')));
+						}
+					});
+					bot.reply(message, '<@melo>: Please test.');
+					tassign(card, 'melody');
+				});
 			});
 		});
 	}
@@ -347,9 +434,11 @@ controller.on('slash_command', function(bot, message) {
 
 // QA preview notification with SCM link based on trello assignment
 controller.on('bot_message', function(bot, message) {
+/*
 	if (message.channel == channels.planning && message.bot_id == bots.trello && message.attachments && message.attachments[0] && message.attachments[0].text && message.attachments[0].text.indexOf('Melody') > -1 && message.attachments[0].text.match(/\d{6}/g)) {
 		bot.say({ channel: channels.qapreview, text: 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + message.attachments[0].text.match(/\d{6}/g)[0]});
 	}
+*/
 });
 
 // SCM Integration
