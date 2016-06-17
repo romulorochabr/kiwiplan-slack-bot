@@ -21,6 +21,7 @@ var bot = controller.spawn({token : process.env.token });
 bot.startRTM();
 
 // Access Trello
+// TODO XXX Is this safe?
 var trello = new Trello('3c3032368c3c88ac3ba8799f3e37d935', 'ee99dec582dbbbacf02f864f93cc3c2771d521203c36563f482f886734f22f6c');
 
 // User IDs
@@ -31,14 +32,16 @@ var users = {
 		trello: '53ed667b3f5d4e4c4e1c5902',
 		scm: 9118,
 		scmcookie: process.env.scmcookiehaoyang,
-		slacktoken: process.env.slacktokenhaoyang
+		slacktoken: process.env.slacktokenhaoyang,
+		gitlabtoken: process.env.gitlabtokenhaoyang
 	},
 	ushal: {
 		name: 'ushal',
 		slack: 'U0HMMNE9W',
 		trello: '563fc2beb2e713d534da52ce',
 		scm: 11729,
-		scmcookie: process.env.scmcookieushal
+		scmcookie: process.env.scmcookieushal,
+		gitlabtoken: process.env.gitlabtokenushal
 	},
 	melody: {
 		name: 'melody',
@@ -82,6 +85,9 @@ var bots = {
 var boards = {
 	ult: 'OckJNZuy'
 }
+
+// GitLab IDs
+var inv = 1;
 
 // Trello Utility
 var tlists = function(cb) {
@@ -128,6 +134,25 @@ var code2scm = function(code, cb) {
 		cb(tscm(card));
 	});
 };
+
+// GitLab Utility
+// - user: The user who coded the feature
+var newmr = function(user, card, source, target, cb) {
+	request.post({
+		url: 'http://nzvult/api/v3/projects/' + inv + '/merge_requests',
+		form: {
+			id: inv,
+			target_branch: target,
+			source_branch: source,
+			title: tcode(card),
+			description: 'ULT SCM ' + tscm(card) + ' - ' + card.desc + '\n' + user.name
+		},
+		headers: { 'PRIVATE-TOKEN': user.gitlabtoken }
+	}, function(err, res, body) {
+		var bodyjson = eval('(' + body + ')');
+		cb(bodyjson.iid);
+	});
+}
 
 // SCM Utility
 var trackurl = 'https://kall.kiwiplan.co.nz/scm/timetracker/track.do';
@@ -273,10 +298,12 @@ controller.on('ambient', function(bot, message) {
 			tfcode(name, function(card) {
 				var reviewer = 'ushal';
 				if (s2u(message.user).name == 'ushal') {
-					reviewer = 'haoyang'
+					reviewer = 'haoyang';
 				}
 				tassign(card, reviewer);
-				bot.reply(message, '<@' + reviewer + '>: Please review the code.');
+				newmr(s2u(message.user), card, tcode(card), 'dev', function(mrid) {
+					bot.reply(message, '<@' + reviewer + '>: Please review the code: http://nzvult/haoyang.feng/inv/merge_requests/' + mrid + '/diffs');
+				});
 			});
 		});
 	}
