@@ -33,7 +33,8 @@ var users = {
 		scm: 9118,
 		scmcookie: process.env.scmcookiehaoyang,
 		slacktoken: process.env.slacktokenhaoyang,
-		gitlabtoken: process.env.gitlabtokenhaoyang
+		gitlabtoken: process.env.gitlabtokenhaoyang,
+		gitlab: 2
 	},
 	ushal: {
 		name: 'ushal',
@@ -41,16 +42,23 @@ var users = {
 		trello: '563fc2beb2e713d534da52ce',
 		scm: 11729,
 		scmcookie: process.env.scmcookieushal,
-		gitlabtoken: process.env.gitlabtokenushal
+		gitlabtoken: process.env.gitlabtokenushal,
+		gitlab: 4
 	},
 	melody: {
 		name: 'melody',
 		slack: 'U0J4CGQKW',
-		trello: '5578c1e12f582a666e7bca4a'
+		trello: '5578c1e12f582a666e7bca4a',
+		gitlabtoken: process.env.gitlabtokenmelody,
+		gitlab: 8
 	},
 	jack: {
 		name: 'jack',
 		slack: 'U0M20CGS1'
+	},
+	kevin: {
+		name: 'kevin',
+		gitlab: 5
 	}
 };
 var t2n = function(t) {
@@ -67,6 +75,9 @@ var s2t = function(s) {
 };
 var s2u = function(s) {
 	return _.find(users, { slack: s });
+};
+var g2u = function(g) {
+	return _.find(users, { gitlab: g });
 };
 
 // Slack IDs
@@ -399,21 +410,51 @@ controller.on('ambient', function(bot, message) {
 			});
 		});
 	}
-	else if (message.text == 'test') {
+	else if (message.text.indexOf('test') >= 0) {
+		channelname(message.channel, function(name) {
+			tfcode(name, function(card) {
+				findbranch(tcode(card), function(branches) {
+					var messagewords = _.split(message.text, ' ');
+					if (messagewords.length == 1) {
+						_.each(branches, function(branch) {
+							if (branch.name == tcode(card)) {
+								// XXX Shouldn't be hard coding 8.40
+								newmr(s2u(message.user), card, branch.name, '8.40');
+							}
+							else {
+								newmr(s2u(message.user), card, branch.name, _.last(_.split(branch.name, '-')));
+							}
+						});
+					}
+					else if (messagewords.length == 2) {
+						newmr(s2u(message.user), card, tcode(card) + '-' + messagewords[1], messagewords[1]);
+					}
+					bot.reply(message, '<@melo>: Please test.');
+					tassign(card, 'melody');
+				});
+			});
+		});
+	}
+	else if (message.text == 'reject') {
+		channelname(message.channel, function(name) {
+			tfcode(name, function(card) {
+				findmr(tcode(card), function(mr) {
+					tassign(card, g2u(mr.author.id).name);
+					bot.reply(message, '<@' + g2u(mr.author.id).name + '>: Your card has been rejected. :cold_sweat:');
+				});
+			});
+		});
+	}
+	else if (message.text == 'accept') {
 		channelname(message.channel, function(name) {
 			tfcode(name, function(card) {
 				findbranch(tcode(card), function(branches) {
 					_.each(branches, function(branch) {
-						if (branch.name == tcode(card)) {
-							// XXX Shouldn't be hard coding 8.40
-							newmr(s2u(message.user), card, branch.name, '8.40');
-						}
-						else {
-							newmr(s2u(message.user), card, branch.name, _.last(_.split(branch.name, '-')));
-						}
+						mergemr(users.melody, branch.name, function() {
+							// XXX This could potentially fail if there's conflict
+							bot.reply(message, '<@melo>: Code has been accepted into ' + branch.name + '.');
+						});
 					});
-					bot.reply(message, '<@melo>: Please test.');
-					tassign(card, 'melody');
 				});
 			});
 		});
