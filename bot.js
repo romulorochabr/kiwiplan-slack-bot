@@ -1,4 +1,5 @@
 var _ = require('lodash');
+var async = require('async');
 var fs = require('fs');
 var glob = require('glob');
 var request = require('request');
@@ -176,7 +177,7 @@ var newmr = function(user, card, source, target, cb) {
 			target_branch: target,
 			source_branch: source,
 			title: source,
-			description: 'ULT SCM ' + tscm(card) + ' - ' + card.desc + '\n' + user.name
+			description: (card ? ('ULT SCM ' + tscm(card) + ' - ' + card.desc) : 'No description') + '\n' + user.name
 		},
 		headers: { 'PRIVATE-TOKEN': user.gitlabtoken }
 	}, function(err, res, body) {
@@ -190,9 +191,10 @@ var newmr = function(user, card, source, target, cb) {
 // - cb(mr)
 var findmr = function(title, cb) {
 	request.get({
-		url: 'http://nzvult/api/v3/projects/' + inv + '/merge_requests',
+		url: 'http://nzvult/api/v3/projects/' + inv + '/merge_requests?state=opened',
 		headers: { 'PRIVATE-TOKEN': users.haoyang.gitlabtoken }
 	}, function(err, res, body) {
+		// FIXME potentially won't find the MR if there're more than 20 as there're 20 MR per request page
 		var bodyjson = eval('(' + body + ')');
 		cb(_.find(bodyjson, { title: title }));
 	});
@@ -203,13 +205,12 @@ var findmr = function(title, cb) {
 var mergemr = function(user, title, cb) {
 	findmr(title, function(mr) {
 		request.put({
-			url: 'http://nzvult/api/v3/projects/' + inv + '/merge_request/' + mr.id + '/merge',
+			url: 'http://nzvult/api/v3/projects/' + inv + '/merge_request/' + mr.id + '/merge?merge_when_build_succeeds=true&should_remove_source_branch=true',
 			form: { id: inv, merge_request_id: mr.id },
 			headers: { 'PRIVATE-TOKEN': user.gitlabtoken }
 		}, function(err, res, body) {
-			l('body', body);
 			// XXX This could potentially fail if there's conflict
-			cb();
+			cb(err);
 		});
 	});
 }
@@ -317,6 +318,38 @@ controller.hears('scm', ['direct_message'], function(bot, message) {
 		headers: { Cookie: s2u(message.user).scmcookie }
 	}, function(err, res, body) {
 		bot.reply(message, body.match(/<title>SCM - (\d{6})/) ? 'SCM link active' : 'SCM link inactive');
+	});
+});
+
+// DM Merge MR
+// "mergemr <branch_name>"
+controller.hears('mergemr', ['direct_message'], function(bot, message) {
+	findbranch(_.split(message.text, ' ')[1], function(branches) {
+		async.eachSeries(_.map(branches, 'name'), _.partial(mergemr, users.melody), function(err) {
+			// XXX This could potentially fail if there's conflict
+			bot.reply(message, err ? 'An error occurred' : 'Code has been merged.');
+		});
+	});
+});
+
+// DM Create MR
+// "createmr <branch_name>"
+controller.hears('createmr', ['direct_message'], function(bot, message) {
+	var branchPrefix = _.split(message.text, ' ')[1];
+	findbranch(branchPrefix, function(branches) {
+		_.each(branches, function(branch) {
+			if (branch.name == branchPrefix) {
+				// XXX Shouldn't be hard coding 8.40
+				newmr(s2u(message.user), null, branch.name, '8.40', function(mrid) {
+					bot.reply(message, 'MR created: ' + mrurl(mrid));
+				});
+			}
+			else {
+				newmr(s2u(message.user), null, branch.name, _.last(_.split(branch.name, '-')), function(mrid) {
+					bot.reply(message, 'MR created: ' + mrurl(mrid));
+				});
+			}
+		});
 	});
 });
 
@@ -449,11 +482,9 @@ controller.on('ambient', function(bot, message) {
 		channelname(message.channel, function(name) {
 			tfcode(name, function(card) {
 				findbranch(tcode(card), function(branches) {
-					_.each(branches, function(branch) {
-						mergemr(users.melody, branch.name, function() {
-							// XXX This could potentially fail if there's conflict
-							bot.reply(message, '<@melo>: Code has been accepted into ' + branch.name + '.');
-						});
+					async.eachSeries(_.map(branches, 'name'), _.partial(mergemr, users.melody), function(err) {
+						// XXX This could potentially fail if there's conflict
+						bot.reply(message, '<@melo>: Code has been accepted.');
 					});
 				});
 			});
