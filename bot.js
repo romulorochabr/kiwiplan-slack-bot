@@ -63,16 +63,19 @@ var users = {
 	}
 };
 var t2n = function(t) {
-	return _.find(users, { trello: t }).name;
+	var user = _.find(users, { trello: t});
+	return user && user.name;
 };
 var n2t = function(n) {
-	return _.find(users, { name: n }).trello;
+	var user =  _.find(users, { name: n })
+	return user && user.trello;
 };
 var n2u = function(n) {
 	return _.find(users, { name: n });
 };
 var s2t = function(s) {
-	return _.find(users, { slack: s }).trello;
+	var user = _.find(users, { slack: s });
+	return user && user.trello;
 };
 var s2u = function(s) {
 	return _.find(users, { slack: s });
@@ -522,6 +525,7 @@ setInterval(function() {
 		var priorityassignee = _.clone(scmusers);
 		for (var i = 0; i < userstoassign.length; i++) {
 			var card = cards[i];
+			if (!card) break;
 			for (var j = 0; j < card.idMembers.length; j++) {
 				_.pull(priorityassignee, t2n(card.idMembers[j]));
 			};
@@ -532,10 +536,15 @@ setInterval(function() {
 				_.pull(priorityassignee, usertoassign);
 				_.pull(userstoassign, usertoassign);
 				if (!tscm(card)) {
-					newscm(n2u(usertoassign), card.desc, card.desc, card.name.match(/\((\d*)\)/)[1] * 10, function(sc) {
-						trello.put('/1/cards/' + card.id + '/name', { value: card.name + ' ' + sc }, function(err) {});
-						joinchannel(card.name.match(/(^| )([a-z\-]*)($| )/)[2], 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + sc, users);
-					});
+					if (!card.name.match(/\((\d*)\)/)) {
+						console.log('Unsized card');
+					}
+					else {
+						newscm(n2u(usertoassign), card.desc, card.desc, card.name.match(/\((\d*)\)/)[1] * 10, function(sc) {
+							trello.put('/1/cards/' + card.id + '/name', { value: card.name + ' ' + sc }, function(err) {});
+							joinchannel(card.name.match(/(^| )([a-z\-]*)($| )/)[2], 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + sc, users);
+						});
+					}
 				}
 				else {
 					joinchannel(tcode(card), 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + tscm(card), users);
