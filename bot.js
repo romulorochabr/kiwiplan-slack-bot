@@ -121,8 +121,17 @@ var tcards = function(listnameprefix, cb) {
 		});
 	});
 };
+
 var tassign = function(card, name) {
 	trello.put('/1/cards/' + card.id + '/idMembers', { value: n2t(name) }, function(err) {});
+}
+
+var tassignmany = function(card, names) {
+	var userstoassign = n2t(names[0]);
+	for (var i = 1 ; i < names.length; i++) {
+		userstoassign += ',' + n2t(names[i])
+	}
+	trello.put('/1/cards/' + card.id + '/idMembers', { value: userstoassign }, function(err) {});
 }
 
 // - Find code from card
@@ -569,7 +578,13 @@ setInterval(function() {
 				else {
 					joinchannel(tcode(card), 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + tscm(card), users);
 				}
-				tassign(card, usertoassign);
+
+				if (card.name.match(/\((\d*)\)/)[0] == '(8)') {
+					tassignmany(card,scmusers);
+				}
+				else {
+					tassign(card, usertoassign);
+				}
 			}
 			else {
 				for (var i = 0; i < card.idMembers.length; i++) {
