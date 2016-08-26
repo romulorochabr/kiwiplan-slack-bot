@@ -5,6 +5,9 @@ var glob = require('glob');
 var request = require('request');
 var Botkit = require('botkit');
 var Trello = require('node-trello');
+var Chess = require('chess.js').Chess;
+var chess = null;
+
 var string = function(input) {
 	return JSON.stringify(input, null, 2);
 }
@@ -208,7 +211,7 @@ var findmr = function(title, cb) {
 var mergemr = function(user, title, cb) {
 	findmr(title, function(mr) {
 		request.put({
-			url: 'http://nzvult/api/v3/projects/' + inv + '/merge_request/' + mr.id + '/merge?merge_when_build_succeeds=true&should_remove_source_branch=true',
+			url: 'http://nzvult/api/v3/projects/' + inv + '/merge_request/' + mr.id + '/merge?merge_when_build_succeeds=true&should_remove_source_branch=false',
 			form: { id: inv, merge_request_id: mr.id },
 			headers: { 'PRIVATE-TOKEN': user.gitlabtoken }
 		}, function(err, res, body) {
@@ -398,7 +401,7 @@ controller.on('ambient', function(bot, message) {
 				}
 				tassign(card, reviewer);
 				newmr(s2u(message.user), card, tcode(card), 'dev', function(mrid) {
-					bot.reply(message, '<@' + reviewer + '>: Please review the code: ' + mrurl(mrid) + '/diffs');
+					bot.reply(message, '<@' + reviewer + '>: Please review the code: ' + mrurl(mrid) + '/diffs. (reviewed/merge)');
 				});
 			});
 		});
@@ -412,7 +415,7 @@ controller.on('ambient', function(bot, message) {
 				}
 				tassign(card, coder);
 				findmr(tcode(card), function(mr) {
-					bot.reply(message, '<@' + coder + '>: Code reviewed, please address the feedback: ' + mrurl(mr.iid));
+					bot.reply(message, '<@' + coder + '>: Code reviewed, please address the feedback: ' + mrurl(mr.iid) + '. (review)');
 				});
 			});
 		});
@@ -426,7 +429,7 @@ controller.on('ambient', function(bot, message) {
 				}
 				tassign(card, reviewer);
 				findmr(tcode(card), function(mr) {
-					bot.reply(message, '<@' + reviewer + '>: Please review the code: ' + mrurl(mr.iid));
+					bot.reply(message, '<@' + reviewer + '>: Please review the code: ' + mrurl(mr.iid) + '. (reviewed/merge)');
 				});
 			});
 		});
@@ -441,12 +444,12 @@ controller.on('ambient', function(bot, message) {
 				tassign(card, coder);
 				mergemr(n2u(coder), tcode(card), function() {
 					// XXX This could potentially fail if there's conflict
-					bot.reply(message, '<@' + coder + '>: Code has been merged to dev.');
+					bot.reply(message, '<@' + coder + '>: Code has been merged to dev. VBRN and type test when VULT is ready');
 				});
 			});
 		});
 	}
-	else if (message.text.indexOf('test') >= 0) {
+	else if (message.text.indexOf('test') == 0) {
 		channelname(message.channel, function(name) {
 			tfcode(name, function(card) {
 				findbranch(tcode(card), function(branches) {
@@ -461,12 +464,14 @@ controller.on('ambient', function(bot, message) {
 								newmr(s2u(message.user), card, branch.name, _.last(_.split(branch.name, '-')));
 							}
 						});
+						bot.reply(message, '<@melo>: Please test. (accept/reject)');
+						tassign(card, 'melody');
 					}
 					else if (messagewords.length == 2) {
 						newmr(s2u(message.user), card, tcode(card) + '-' + messagewords[1], messagewords[1]);
+						bot.reply(message, '<@melo>: Please test. (accept/reject)');
+						tassign(card, 'melody');
 					}
-					bot.reply(message, '<@melo>: Please test.');
-					tassign(card, 'melody');
 				});
 			});
 		});
@@ -486,12 +491,27 @@ controller.on('ambient', function(bot, message) {
 			tfcode(name, function(card) {
 				findbranch(tcode(card), function(branches) {
 					async.eachSeries(_.map(branches, 'name'), _.partial(mergemr, users.melody), function(err) {
-						// XXX This could potentially fail if there's conflict
 						bot.reply(message, '<@melo>: Code has been accepted.');
 					});
 				});
 			});
 		});
+	}
+	else if (message.text.indexOf('chess') == 0) {
+		channelname(message.channel, function(name) {
+			if (name == 'chess') {
+				chess = new Chess();
+				bot.reply(message, '```' + chess.ascii() + '```');
+			}
+		})
+	}
+	else if (message.text.indexOf('move') == 0) {
+		channelname(message.channel, function(name) {
+			if (name == 'chess') {
+				chess.move(_.split(message.text, ' ')[1]);
+				bot.reply(message, '```' + chess.ascii() + '```');
+			}
+		})
 	}
 });
 
