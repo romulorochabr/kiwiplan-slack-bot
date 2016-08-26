@@ -17,11 +17,12 @@
     "url": "https://github.com/haoyangnz/kiwiplan-slack-bot/issues"
   },
   "dependencies": {
-    "botkit": "0.0.5",
-    "glob": "~7.0.3",
-    "node-trello": "~1.1.2",
-    "lodash": "~4.13.1",
     "async": "~2.0.1",
-    "chess.js": "~0.10.2"
+    "botkit": "0.0.5",
+    "chess.js": "~0.10.2",
+    "glob": "~7.0.3",
+    "lodash": "~4.13.1",
+    "node-trello": "~1.1.2",
+    "request": "^2.74.0"
   }
 }
