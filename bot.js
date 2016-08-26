@@ -5,6 +5,9 @@ var glob = require('glob');
 var request = require('request');
 var Botkit = require('botkit');
 var Trello = require('node-trello');
+var Chess = require('chess.js').Chess;
+var chess = null;
+
 var string = function(input) {
 	return JSON.stringify(input, null, 2);
 }
@@ -493,6 +496,22 @@ controller.on('ambient', function(bot, message) {
 				});
 			});
 		});
+	}
+	else if (message.text.indexOf('chess') == 0) {
+		channelname(message.channel, function(name) {
+			if (name == 'chess') {
+				chess = new Chess();
+				bot.reply(message, '```' + chess.ascii() + '```');
+			}
+		})
+	}
+	else if (message.text.indexOf('move') == 0) {
+		channelname(message.channel, function(name) {
+			if (name == 'chess') {
+				chess.move(_.split(message.text, ' ')[1]);
+				bot.reply(message, '```' + chess.ascii() + '```');
+			}
+		})
 	}
 });
 
