@@ -90,7 +90,7 @@ var g2u = function(g) {
 // Slack IDs
 var channels = {
 	testjack: 'C14N0EPGC',
-	dev: 'C1AT7J692'
+	dev: 'C1AT7J692',
 	vm: 'C16HEPJTV',
 	qapreview: 'C0M20LYJF',
 	planning: 'C0JAB2CAD',
