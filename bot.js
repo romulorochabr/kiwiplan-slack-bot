@@ -579,7 +579,7 @@ setInterval(function() {
 					joinchannel(tcode(card), 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + tscm(card), users);
 				}
 
-				if (card.name.match(/\((\d*)\)/)[1] == 8) {
+				if (card.name.match(/\((\d*)\)/)[1] == 5) {
 					tassignmany(card,scmusers);
 				}
 				else {
@@ -604,7 +604,7 @@ setInterval(function() {
 			if (!cardname) {
 				console.log('Unsized card');
 			}
-			else if (!_.isEmpty(card.idMembers) && (cardname[1] == 3) || (cardname[1] == 5)) {
+			else if (!_.isEmpty(card.idMembers) && (cardname[1] == 2) || (cardname[1] == 3)) {
 				bot.say({ channel: channels.testjack, text: 'Close Collaboration for ' + tcode(card) });
 			}
 		});
