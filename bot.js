@@ -607,17 +607,20 @@ setInterval(function() {
 }, 60000);
 
 setInterval(function() {
-	tcards('Dev', function(cards) {
-		_.each(cards, function(card) {
-			var cardSizeMatcher = card.name.match(/\((\d*)\)/);
-			if (!cardSizeMatcher) {
-				console.log('Unsized card');
-			}
-			else if (!_.isEmpty(card.idMembers) && (cardSizeMatcher[1] == 2) || (cardSizeMatcher[1] == 3)) {
-				bot.say({ channel: channels.dev, text: 'Close Collaboration for ' + tcode(card) });
-			}
+	var hour = (new Date()).getHours();
+	if (hour > 9 && hour < 19) {
+		tcards('Dev', function(cards) {
+			_.each(cards, function(card) {
+				var cardSizeMatcher = card.name.match(/\((\d*)\)/);
+				if (!cardSizeMatcher) {
+					console.log('Unsized card');
+				}
+				else if (!_.isEmpty(card.idMembers) && (cardSizeMatcher[1] == 2) || (cardSizeMatcher[1] == 3)) {
+					bot.say({ channel: channels.dev, text: '<@haoyang> <@ushal> Close Collaboration for ' + tcode(card) });
+				}
+			});
 		});
-	});
+	}
 }, 1800000);
 
 // SCM Keep alive
