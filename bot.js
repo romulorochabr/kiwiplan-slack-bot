@@ -90,7 +90,7 @@ var g2u = function(g) {
 // Slack IDs
 var channels = {
 	testjack: 'C14N0EPGC',
-	dev: 'C0L4PU8S1',
+	dev: 'C1AT7J692'
 	vm: 'C16HEPJTV',
 	qapreview: 'C0M20LYJF',
 	planning: 'C0JAB2CAD'
@@ -602,12 +602,12 @@ setInterval(function() {
 setInterval(function() {
 	tcards('Dev', function(cards) {
 		_.each(cards, function(card) {
-			var cardname = card.name.match(/\((\d*)\)/);
-			if (!cardname) {
+			var cardSizeMatcher = card.name.match(/\((\d*)\)/);
+			if (!cardSizeMatcher) {
 				console.log('Unsized card');
 			}
-			else if (!_.isEmpty(card.idMembers) && (cardname[1] == 2) || (cardname[1] == 3)) {
-				bot.say({ channel: channels.testjack, text: 'Close Collaboration for ' + tcode(card) });
+			else if (!_.isEmpty(card.idMembers) && (cardSizeMatcher[1] == 2) || (cardSizeMatcher[1] == 3)) {
+				bot.say({ channel: channels.dev, text: 'Close Collaboration for ' + tcode(card) });
 			}
 		});
 	});
