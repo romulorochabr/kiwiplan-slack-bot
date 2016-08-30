@@ -579,7 +579,7 @@ setInterval(function() {
 					joinchannel(tcode(card), 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + tscm(card), users);
 				}
 
-				if (card.name.match(/\((\d*)\)/)[0] == '(8)') {
+				if (card.name.match(/\((\d*)\)/)[0] == '(5)') {
 					tassignmany(card,scmusers);
 				}
 				else {
