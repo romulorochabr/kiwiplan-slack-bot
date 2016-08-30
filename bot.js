@@ -579,8 +579,10 @@ setInterval(function() {
 					joinchannel(tcode(card), 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + tscm(card), users);
 				}
 
-				if (card.name.match(/\((\d*)\)/)[1] == 5) {
+				if (card.name.match(/\((\d*)\)/)[1] >= 5) {
+					//XXX Currentlywill assign all users in the scmusers list
 					tassignmany(card,scmusers);
+					return false;
 				}
 				else {
 					tassign(card, usertoassign);
