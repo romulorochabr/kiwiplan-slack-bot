@@ -90,7 +90,7 @@ var g2u = function(g) {
 // Slack IDs
 var channels = {
 	testjack: 'C14N0EPGC',
-	dev: 'C0L4PU8S1',
+	dev: 'C1AT7J692'
 	vm: 'C16HEPJTV',
 	qapreview: 'C0M20LYJF',
 	planning: 'C0JAB2CAD',
@@ -122,8 +122,17 @@ var tcards = function(listnameprefix, cb) {
 		});
 	});
 };
+
 var tassign = function(card, name) {
 	trello.put('/1/cards/' + card.id + '/idMembers', { value: n2t(name) }, function(err) {});
+}
+
+var tassignmany = function(card, names) {
+	var userstoassign = n2t(names[0]);
+	for (var i = 1 ; i < names.length; i++) {
+		userstoassign += ',' + n2t(names[i])
+	}
+	trello.put('/1/cards/' + card.id + '/idMembers', { value: userstoassign }, function(err) {});
 }
 
 // - Find code from card
@@ -576,7 +585,15 @@ setInterval(function() {
 				else {
 					joinchannel(tcode(card), 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + tscm(card), users);
 				}
-				tassign(card, usertoassign);
+
+				if (card.name.match(/\((\d*)\)/)[1] >= 5) {
+					//XXX Currentlywill assign all users in the scmusers list
+					tassignmany(card,scmusers);
+					return false;
+				}
+				else {
+					tassign(card, usertoassign);
+				}
 			}
 			else {
 				for (var i = 0; i < card.idMembers.length; i++) {
@@ -588,6 +605,20 @@ setInterval(function() {
 		});
 	});
 }, 60000);
+
+setInterval(function() {
+	tcards('Dev', function(cards) {
+		_.each(cards, function(card) {
+			var cardSizeMatcher = card.name.match(/\((\d*)\)/);
+			if (!cardSizeMatcher) {
+				console.log('Unsized card');
+			}
+			else if (!_.isEmpty(card.idMembers) && (cardSizeMatcher[1] == 2) || (cardSizeMatcher[1] == 3)) {
+				bot.say({ channel: channels.dev, text: 'Close Collaboration for ' + tcode(card) });
+			}
+		});
+	});
+}, 1800000);
 
 // SCM Keep alive
 var scmkeepalive = function() {
