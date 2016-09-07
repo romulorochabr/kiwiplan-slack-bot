@@ -90,10 +90,11 @@ var g2u = function(g) {
 // Slack IDs
 var channels = {
 	testjack: 'C14N0EPGC',
-	dev: 'C1AT7J692'
+	dev: 'C1AT7J692',
 	vm: 'C16HEPJTV',
 	qapreview: 'C0M20LYJF',
-	planning: 'C0JAB2CAD'
+	planning: 'C0JAB2CAD',
+	chess: 'C255F30FP',
 };
 var bots = {
 	trello: 'B0HSGEXF1'
@@ -370,8 +371,12 @@ controller.hears('createmr', ['direct_message'], function(bot, message) {
 
 // Ambient Handler
 controller.on('ambient', function(bot, message) {
+	// Global commands
+	if (message.text == '.channelid') {
+		bot.reply(message, message.channel);
+	}
 	// Test Jack
-	if (message.channel == channels.testjack) {
+	else if (message.channel == channels.testjack) {
 		if (message.text.indexOf("echo") == 0) {
 			bot.reply(message,{
 				text: JSON.stringify(message, null, 2),
@@ -381,6 +386,24 @@ controller.on('ambient', function(bot, message) {
 		}
 		else if (message.text.indexOf("log") == 0) {
 			console.log(JSON.stringify(message, null, 2));
+		}
+	}
+	// Chess
+	else if (message.channel == channels.chess) {
+		if (message.text.indexOf('chess') == 0) {
+			chessplayers = _.shuffle(['haoyang', 'ushal']);
+			chess = new Chess();
+			bot.reply(message, '<@' + chessplayers[0] + '>: Your turn (' + chess.turn() + ') \n http://www.fen-to-image.com/image/44/double/coords/' + _.split(chess.fen(), ' ')[0] + Date.now());
+			//bot.reply(message, '<@' + chessplayers[0] + '>: Your turn (' + chess.turn() + ') \n ```' + chess.ascii() + '``` \n http://www.fen-to-image.com/image/44/double/coords/' + chess.fen() + Date.now());
+		}
+		else if (message.text.indexOf('undo') == 0) {
+			chess.undo();
+			chessplayers = _.reverse(chessplayers);
+			bot.reply(message, '<@' + chessplayers[0] + '>: Your turn (' + chess.turn() + ') \n http://www.fen-to-image.com/image/44/double/coords/' + _.split(chess.fen(), ' ')[0] + Date.now());
+		}
+		else if (_.split(message.text, ' ').length == 1 && chess.move(message.text) != null) {
+			chessplayers = _.reverse(chessplayers);
+			bot.reply(message, '<@' + chessplayers[0] + '>: Your turn (' + chess.turn() + ') \n http://www.fen-to-image.com/image/44/double/coords/' + _.split(chess.fen(), ' ')[0] + Date.now());
 		}
 	}
 	else if (message.text == 'start') {
@@ -506,22 +529,6 @@ controller.on('ambient', function(bot, message) {
 			});
 		});
 	}
-	else if (message.text.indexOf('chess') == 0) {
-		channelname(message.channel, function(name) {
-			if (name == 'chess') {
-				chess = new Chess();
-				bot.reply(message, '```' + chess.ascii() + '```');
-			}
-		})
-	}
-	else if (message.text.indexOf('move') == 0) {
-		channelname(message.channel, function(name) {
-			if (name == 'chess') {
-				chess.move(_.split(message.text, ' ')[1]);
-				bot.reply(message, '```' + chess.ascii() + '```');
-			}
-		})
-	}
 });
 
 // Slash Command Handler (Not used, just for reference)
@@ -600,17 +607,20 @@ setInterval(function() {
 }, 60000);
 
 setInterval(function() {
-	tcards('Dev', function(cards) {
-		_.each(cards, function(card) {
-			var cardSizeMatcher = card.name.match(/\((\d*)\)/);
-			if (!cardSizeMatcher) {
-				console.log('Unsized card');
-			}
-			else if (!_.isEmpty(card.idMembers) && (cardSizeMatcher[1] == 2) || (cardSizeMatcher[1] == 3)) {
-				bot.say({ channel: channels.dev, text: 'Close Collaboration for ' + tcode(card) });
-			}
+	var hour = (new Date()).getHours();
+	if (hour > 9 && hour < 19) {
+		tcards('Dev', function(cards) {
+			_.each(cards, function(card) {
+				var cardSizeMatcher = card.name.match(/\((\d*)\)/);
+				if (!cardSizeMatcher) {
+					console.log('Unsized card');
+				}
+				else if (!_.isEmpty(card.idMembers) && (cardSizeMatcher[1] == 2) || (cardSizeMatcher[1] == 3)) {
+					bot.say({ channel: channels.dev, text: '<@haoyang> <@ushal> Close Collaboration for ' + tcode(card) });
+				}
+			});
 		});
-	});
+	}
 }, 1800000);
 
 // SCM Keep alive
