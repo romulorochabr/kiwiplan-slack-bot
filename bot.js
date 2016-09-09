@@ -220,6 +220,7 @@ var findmr = function(title, cb) {
 // - cb()
 var mergemr = function(user, title, cb) {
 	findmr(title, function(mr) {
+		if (!mr) return;
 		request.put({
 			url: 'http://nzvult/api/v3/projects/' + inv + '/merge_request/' + mr.id + '/merge?merge_when_build_succeeds=true&should_remove_source_branch=false',
 			form: { id: inv, merge_request_id: mr.id },
@@ -574,6 +575,7 @@ setInterval(function() {
 				if (!tscm(card)) {
 					if (!card.name.match(/\((\d*)\)/)) {
 						console.log('Unsized card');
+						return true;
 					}
 					else {
 						newscm(n2u(usertoassign), card.desc, card.desc, card.name.match(/\((\d*)\)/)[1] * 10, function(sc) {
