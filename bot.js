@@ -30,9 +30,17 @@ var save = function() {
 }
 
 if (fs.existsSync('./data.json') == false) {
-	jsonfile.writeFileSync('./data.json', {name : 'jack'});
+	var initdata = {
+		deployStatus : 'none'
+	}
+	jsonfile.writeFileSync('./data.json', initdata);
 }
 
+// Data that the bot remembers
+// deployStatus: A string status for auto deployment
+// - 'none': Can be deployed
+// - 'locked': Don't deploy right now but pend the deployment (nothing pending yet)
+// - 'pending': Don't deploy right now (something pending deployment)
 var data = jsonfile.readFileSync('./data.json');
 
 // Access Trello
@@ -397,14 +405,6 @@ controller.on('ambient', function(bot, message) {
 			bot.reply(message, '<@' + chessplayers[0] + '>: Your turn (' + chess.turn() + ') \n http://www.fen-to-image.com/image/44/double/coords/' + _.split(chess.fen(), ' ')[0] + Date.now());
 		}
 	}
-	// Listen to gitlab channel to deploy to VULT
-	else if (message.channel == channels.gitlab && message.text.indexOf('pushed to branch dev') > 0) {
-		jsonfile.readFile(datafile, function(err,obj){
-			if (!err && !obj.lockserver) {
-				//Call deployment and create ssrequest	
-			}
-		});
-	}
 	else if (message.text == 'start') {
 		channelname(message.channel, function(name) {
 			code2scm(name, function(scm) {
@@ -519,13 +519,17 @@ controller.on('ambient', function(bot, message) {
 		
 	}
 	else if (message.text == 'teststart') {
-		jsonfile.writeFile(datafile, {lockserver: true});
-		bot.reply(message, '<@melo>: Please test. (Please type teststop when completed)');
+		data.deployStatus = 'locked';
+		save();
+		bot.reply(message, 'The server is now locked. (Please type teststop when completed)');
 		
 	}
 	else if (message.text == 'teststop') {
-		//Call deployment and create ssrequest	
-		jsonfile.writeFile(datafile, {lockserver: false});
+		if (data.deployStatus == 'pending') {
+			fs.writeFile('/vmlock/ssrequest', '');
+		}
+		data.deployStatus = 'none';
+		save();
 		bot.reply(message, 'Please type accept if the change is acceptable, or reject if it is not');
 	}
 	else if (message.text == 'reject') {
@@ -563,13 +567,18 @@ controller.on('slash_command', function(bot, message) {
 	}
 });
 
-// QA preview notification with SCM link based on trello assignment
+// Bot Messages
 controller.on('bot_message', function(bot, message) {
-/*
-	if (message.channel == channels.planning && message.bot_id == bots.trello && message.attachments && message.attachments[0] && message.attachments[0].text && message.attachments[0].text.indexOf('Melody') > -1 && message.attachments[0].text.match(/\d{6}/g)) {
-		bot.say({ channel: channels.qapreview, text: 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + message.attachments[0].text.match(/\d{6}/g)[0]});
+	// Listen to push to dev to create ss request
+	if (message.channel == channels.gitlab && message.text.indexOf('pushed to branch <http://NZVULT/haoyang.feng/inv/commits/dev|dev>') > 0) {
+		if (data.deployStatus == 'none') {
+			fs.writeFile('/vmlock/ssrequest', '');
+		}
+		else {
+			data.deployStatus = 'pending';
+			save();
+		}
 	}
-*/
 });
 
 // SCM Integration
