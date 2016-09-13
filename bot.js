@@ -349,16 +349,6 @@ controller.hears('scm', ['direct_message'], function(bot, message) {
 	});
 });
 
-// DM Merge MR
-// "mergemr <branch_name>"
-controller.hears('mergemr', ['direct_message'], function(bot, message) {
-	findbranch(_.split(message.text, ' ')[1], function(branches) {
-		async.eachSeries(_.map(branches, 'name'), _.partial(mergemr, users.melody), function(err) {
-			// XXX This could potentially fail if there's conflict
-			bot.reply(message, err ? 'An error occurred' : 'Code has been merged.');
-		});
-	});
-});
 
 // Ambient Handler
 controller.on('ambient', function(bot, message) {
