@@ -7,6 +7,7 @@ var Botkit = require('botkit');
 var Trello = require('node-trello');
 var Chess = require('chess.js').Chess;
 var chess = null;
+var jsonfile = require('jsonfile');
 
 var string = function(input) {
 	return JSON.stringify(input, null, 2);
@@ -23,6 +24,24 @@ var controller = Botkit.slackbot({ debug : false });
 controller.setupWebserver(process.env.PORT || 3000);
 var bot = controller.spawn({token : process.env.token });
 bot.startRTM();
+
+var save = function() {
+	jsonfile.writeFileSync('./data.json', data);
+}
+
+if (fs.existsSync('./data.json') == false) {
+	var initdata = {
+		deployStatus : 'none'
+	}
+	jsonfile.writeFileSync('./data.json', initdata);
+}
+
+// Data that the bot remembers
+// deployStatus: A string status for auto deployment
+// - 'none': Can be deployed
+// - 'locked': Don't deploy right now but pend the deployment (nothing pending yet)
+// - 'pending': Don't deploy right now (something pending deployment)
+var data = jsonfile.readFileSync('./data.json');
 
 // Access Trello
 // TODO XXX Is this safe?
@@ -95,6 +114,7 @@ var channels = {
 	qapreview: 'C0M20LYJF',
 	planning: 'C0JAB2CAD',
 	chess: 'C255F30FP',
+	gitlab: 'C0SENG8AY',
 };
 var bots = {
 	trello: 'B0HSGEXF1'
@@ -253,8 +273,7 @@ var scm2id = function(user, scm, cb) {
 var trackstart = function(user, scm, cb) {
 	scm2id(user, scm, function(id, title) {
 		request.post({ url: trackurl, form: { id: id, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Start Tracking' }, headers: { Cookie: user.scmcookie } }, function(err, res, body) { cb(title); });
-	});
-};
+	}); };
 var trackstop = function(user, scm, cb) {
 	scm2id(user, scm, function(id, title) {
 		request.post({ url: trackurl, form: { id: id, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Stop Tracking' }, headers: { Cookie: user.scmcookie } }, function(err, res, body) { cb(title); });
@@ -338,15 +357,15 @@ controller.hears('scm', ['direct_message'], function(bot, message) {
 	});
 });
 
-// DM Merge MR
-// "mergemr <branch_name>"
-controller.hears('mergemr', ['direct_message'], function(bot, message) {
-	findbranch(_.split(message.text, ' ')[1], function(branches) {
-		async.eachSeries(_.map(branches, 'name'), _.partial(mergemr, users.melody), function(err) {
-			// XXX This could potentially fail if there's conflict
-			bot.reply(message, err ? 'An error occurred' : 'Code has been merged.');
-		});
-	});
+// DM Save
+controller.hears('save', ['direct_message'], function(bot, message) {
+	data.dmSave = _.split(message.text, ' ')[1];
+	save();
+});
+
+// DM Data
+controller.hears('data', ['direct_message'], function(bot, message) {
+	bot.reply(message, JSON.stringify(data,null,2));
 });
 
 // Ambient Handler
@@ -490,14 +509,28 @@ controller.on('ambient', function(bot, message) {
 			});
 		});
 	}
-	else if (message.text.indexOf('test') == 0) {
+	else if (message.text == 'test') {
 		channelname(message.channel, function(name) {
 			tfcode(name, function(card) {
-				bot.reply(message, '<@melo>: Please test. (accept/reject)');
+				bot.reply(message, '<@melo>: Please test. (Please type teststart when you begin)');
 				tassign(card, 'melody');
 			});
 		});
 		
+	}
+	else if (message.text == 'teststart') {
+		data.deployStatus = 'locked';
+		save();
+		bot.reply(message, 'The server is now locked. (Please type teststop when completed)');
+		
+	}
+	else if (message.text == 'teststop') {
+		if (data.deployStatus == 'pending') {
+			fs.writeFile('/vmlock/ssrequest', '');
+		}
+		data.deployStatus = 'none';
+		save();
+		bot.reply(message, 'Please type accept if the change is acceptable, or reject if it is not');
 	}
 	else if (message.text == 'reject') {
 		channelname(message.channel, function(name) {
@@ -534,13 +567,18 @@ controller.on('slash_command', function(bot, message) {
 	}
 });
 
-// QA preview notification with SCM link based on trello assignment
+// Bot Messages
 controller.on('bot_message', function(bot, message) {
-/*
-	if (message.channel == channels.planning && message.bot_id == bots.trello && message.attachments && message.attachments[0] && message.attachments[0].text && message.attachments[0].text.indexOf('Melody') > -1 && message.attachments[0].text.match(/\d{6}/g)) {
-		bot.say({ channel: channels.qapreview, text: 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + message.attachments[0].text.match(/\d{6}/g)[0]});
+	// Listen to push to dev to create ss request
+	if (message.channel == channels.gitlab && message.text.indexOf('pushed to branch <http://NZVULT/haoyang.feng/inv/commits/dev|dev>') > 0) {
+		if (data.deployStatus == 'none') {
+			fs.writeFile('/vmlock/ssrequest', '');
+		}
+		else {
+			data.deployStatus = 'pending';
+			save();
+		}
 	}
-*/
 });
 
 // SCM Integration
