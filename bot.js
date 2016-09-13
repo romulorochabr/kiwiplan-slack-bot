@@ -392,8 +392,8 @@ controller.on('ambient', function(bot, message) {
 	// Listen to gitlab channel to deploy to VULT
 	else if (message.channel == channels.gitlab && message.text.indexOf('pushed to branch dev') > 0) {
 		jsonfile.readFile(datafile, function(err,obj){
-			if (!err && obj.lockserver == false) {
-				//Call deployment and ssrequest	
+			if (!err && !obj.lockserver) {
+				//Call deployment and create ssrequest	
 			}
 		});
 	}
@@ -516,7 +516,7 @@ controller.on('ambient', function(bot, message) {
 		
 	}
 	else if (message.text == 'teststop') {
-		//Call deployment and ssrequest	
+		//Call deployment and create ssrequest	
 		jsonfile.writeFile(datafile, {lockserver: false});
 		bot.reply(message, 'Please type accept if the change is acceptable, or reject if it is not');
 	}
