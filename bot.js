@@ -490,7 +490,7 @@ controller.on('ambient', function(bot, message) {
 			});
 		});
 	}
-	else if (message.text.indexOf('test') == 0) {
+	else if (message.text == 'test') {
 		channelname(message.channel, function(name) {
 			tfcode(name, function(card) {
 				bot.reply(message, '<@melo>: Please test. (Please type teststart when you begin and teststop when you end. Then type accept/reject when completed)');
