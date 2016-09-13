@@ -349,27 +349,6 @@ controller.hears('mergemr', ['direct_message'], function(bot, message) {
 	});
 });
 
-// DM Create MR
-// "createmr <branch_name>"
-controller.hears('createmr', ['direct_message'], function(bot, message) {
-	var branchPrefix = _.split(message.text, ' ')[1];
-	findbranch(branchPrefix, function(branches) {
-		_.each(branches, function(branch) {
-			if (branch.name == branchPrefix) {
-				// XXX Shouldn't be hard coding 8.40
-				newmr(s2u(message.user), null, branch.name, '8.40', function(mrid) {
-					bot.reply(message, 'MR created: ' + mrurl(mrid));
-				});
-			}
-			else {
-				newmr(s2u(message.user), null, branch.name, _.last(_.split(branch.name, '-')), function(mrid) {
-					bot.reply(message, 'MR created: ' + mrurl(mrid));
-				});
-			}
-		});
-	});
-});
-
 // Ambient Handler
 controller.on('ambient', function(bot, message) {
 	// Global commands
@@ -477,12 +456,12 @@ controller.on('ambient', function(bot, message) {
 				tassign(card, coder);
 				mergemr(n2u(coder), tcode(card), function() {
 					// XXX This could potentially fail if there's conflict
-					bot.reply(message, '<@' + coder + '>: Code has been merged to dev. VBRN and type test when VULT is ready');
+					bot.reply(message, '<@' + coder + '>: Code has been merged to dev. VBRN and type createmr when VULT is ready');
 				});
 			});
 		});
 	}
-	else if (message.text.indexOf('test') == 0) {
+	else if (message.text.indexOf('createmr') == 0) {
 		channelname(message.channel, function(name) {
 			tfcode(name, function(card) {
 				findbranch(tcode(card), function(branches) {
@@ -491,23 +470,34 @@ controller.on('ambient', function(bot, message) {
 						_.each(branches, function(branch) {
 							if (branch.name == tcode(card)) {
 								// XXX Shouldn't be hard coding 8.40
-								newmr(s2u(message.user), card, branch.name, '8.40');
+								newmr(s2u(message.user), card, branch.name, '8.40', function(mrid) {
+									bot.reply(message, '<@' + s2u(message.user).name + '>: MR created: ' + mrurl(mrid) + '. (Type test after checking the MRs are good.)');
+								});
 							}
 							else {
-								newmr(s2u(message.user), card, branch.name, _.last(_.split(branch.name, '-')));
+								newmr(s2u(message.user), card, branch.name, _.last(_.split(branch.name, '-')), function(mrid) {
+									bot.reply(message, '<@' + s2u(message.user).name + '>: MR created: ' + mrurl(mrid) + '. (Type test after checking the MRs are good.)');
+								});
 							}
 						});
-						bot.reply(message, '<@melo>: Please test. (accept/reject)');
-						tassign(card, 'melody');
 					}
 					else if (messagewords.length == 2) {
-						newmr(s2u(message.user), card, tcode(card) + '-' + messagewords[1], messagewords[1]);
-						bot.reply(message, '<@melo>: Please test. (accept/reject)');
-						tassign(card, 'melody');
+						newmr(s2u(message.user), card, tcode(card) + '-' + messagewords[1], messagewords[1], function(mrid) {
+									bot.reply(message, '<@' + s2u(message.user).name + '>: MR created: ' + mrurl(mrid) + '. (Type test after checking the MRs are good.)');
+						});
 					}
 				});
 			});
 		});
+	}
+	else if (message.text.indexOf('test') == 0) {
+		channelname(message.channel, function(name) {
+			tfcode(name, function(card) {
+				bot.reply(message, '<@melo>: Please test. (accept/reject)');
+				tassign(card, 'melody');
+			});
+		});
+		
 	}
 	else if (message.text == 'reject') {
 		channelname(message.channel, function(name) {
