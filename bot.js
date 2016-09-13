@@ -495,7 +495,7 @@ controller.on('ambient', function(bot, message) {
 	else if (message.text == 'test') {
 		channelname(message.channel, function(name) {
 			tfcode(name, function(card) {
-				bot.reply(message, '<@melo>: Please test. (Please type teststart when you begin and teststop when you end. Then type accept/reject when completed)');
+				bot.reply(message, '<@melo>: Please test. (Please type teststart when you begin)');
 				tassign(card, 'melody');
 			});
 		});
@@ -503,7 +503,13 @@ controller.on('ambient', function(bot, message) {
 	}
 	else if (message.text == 'teststart') {
 		jsonfile.writeFile(datafile, {lockserver: true});
+		bot.reply(message, '<@melo>: Please test. (Please type teststop when completed)');
 		
+	}
+	else if (message.text == 'teststop') {
+		//Call deployment and ssrequest	
+		jsonfile.writeFile(datafile, {lockserver: false});
+		bot.reply(message, 'Please type accept if the change is acceptable, or reject if it is not');
 	}
 	else if (message.text == 'reject') {
 		channelname(message.channel, function(name) {
