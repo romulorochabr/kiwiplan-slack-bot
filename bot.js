@@ -349,6 +349,16 @@ controller.hears('scm', ['direct_message'], function(bot, message) {
 	});
 });
 
+// DM Save
+controller.hears('save', ['direct_message'], function(bot, message) {
+	data.dmSave = _.split(message.text, ' ')[1];
+	save();
+});
+
+// DM Data
+controller.hears('data', ['direct_message'], function(bot, message) {
+	bot.reply(message, JSON.stringify(data,null,2));
+});
 
 // Ambient Handler
 controller.on('ambient', function(bot, message) {
