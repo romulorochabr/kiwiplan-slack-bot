@@ -8,7 +8,7 @@ var Trello = require('node-trello');
 var Chess = require('chess.js').Chess;
 var chess = null;
 var jsonfile = require('jsonfile');
-var datafile = '/tmp/jackdata.json'
+var datafile = 'jackdata.json'
 
 var string = function(input) {
 	return JSON.stringify(input, null, 2);
@@ -256,8 +256,7 @@ var scm2id = function(user, scm, cb) {
 var trackstart = function(user, scm, cb) {
 	scm2id(user, scm, function(id, title) {
 		request.post({ url: trackurl, form: { id: id, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Start Tracking' }, headers: { Cookie: user.scmcookie } }, function(err, res, body) { cb(title); });
-	});
-};
+	}); };
 var trackstop = function(user, scm, cb) {
 	scm2id(user, scm, function(id, title) {
 		request.post({ url: trackurl, form: { id: id, taskType: 'SOFTWARE_CHANGE_TASK', status: 'assigned', action: 'Stop Tracking' }, headers: { Cookie: user.scmcookie } }, function(err, res, body) { cb(title); });
