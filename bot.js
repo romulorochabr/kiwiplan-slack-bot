@@ -8,7 +8,6 @@ var Trello = require('node-trello');
 var Chess = require('chess.js').Chess;
 var chess = null;
 var jsonfile = require('jsonfile');
-var datafile = 'jackdata.json'
 
 var string = function(input) {
 	return JSON.stringify(input, null, 2);
@@ -25,6 +24,16 @@ var controller = Botkit.slackbot({ debug : false });
 controller.setupWebserver(process.env.PORT || 3000);
 var bot = controller.spawn({token : process.env.token });
 bot.startRTM();
+
+var save = function() {
+	jsonfile.writeFileSync('./data.json', data);
+}
+
+if (fs.existsSync('./data.json') == false) {
+	jsonfile.writeFileSync('./data.json', {name : 'jack'});
+}
+
+var data = jsonfile.readFileSync('./data.json');
 
 // Access Trello
 // TODO XXX Is this safe?
