@@ -97,6 +97,7 @@ var channels = {
 	qapreview: 'C0M20LYJF',
 	planning: 'C0JAB2CAD',
 	chess: 'C255F30FP',
+	gitlab: 'C0SENG8AY',
 };
 var bots = {
 	trello: 'B0HSGEXF1'
@@ -387,6 +388,14 @@ controller.on('ambient', function(bot, message) {
 			chessplayers = _.reverse(chessplayers);
 			bot.reply(message, '<@' + chessplayers[0] + '>: Your turn (' + chess.turn() + ') \n http://www.fen-to-image.com/image/44/double/coords/' + _.split(chess.fen(), ' ')[0] + Date.now());
 		}
+	}
+	// Listen to gitlab channel to deploy to VULT
+	else if (message.channel == channels.gitlab && message.text.indexOf('pushed to branch dev') > 0) {
+		jsonfile.readFile(datafile, function(err,obj){
+			if (!err && obj.lockserver == false) {
+				//Call deployment and ssrequest	
+			}
+		});
 	}
 	else if (message.text == 'start') {
 		channelname(message.channel, function(name) {
