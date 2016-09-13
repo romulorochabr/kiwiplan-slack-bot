@@ -7,6 +7,8 @@ var Botkit = require('botkit');
 var Trello = require('node-trello');
 var Chess = require('chess.js').Chess;
 var chess = null;
+var jsonfile = require('jsonfile');
+var datafile = '/tmp/jackdata.json'
 
 var string = function(input) {
 	return JSON.stringify(input, null, 2);
@@ -497,6 +499,10 @@ controller.on('ambient', function(bot, message) {
 				tassign(card, 'melody');
 			});
 		});
+		
+	}
+	else if (message.text == 'teststart') {
+		jsonfile.writeFile(datafile, {lockserver: true});
 		
 	}
 	else if (message.text == 'reject') {
