@@ -213,7 +213,7 @@ var newmr = function(user, card, source, target, cb) {
 			target_branch: target,
 			source_branch: source,
 			title: source,
-			description: (card ? ('ULT SCM ' + tscm(card) + ' - ' + card.desc) : 'No description') + '\n' + user.name
+			description: (card ? ('ULT SCM ' + tscm(card) + ' - ' + card.desc.split('\n')[0]) : 'No description') + '\n' + user.name
 		},
 		headers: { 'PRIVATE-TOKEN': user.gitlabtoken }
 	}, function(err, res, body) {
@@ -606,7 +606,7 @@ setInterval(function() {
 						return true;
 					}
 					else {
-						newscm(n2u(usertoassign), card.desc, card.desc, card.name.match(/\((\d*)\)/)[1] * 10, function(sc) {
+						newscm(n2u(usertoassign), card.desc.split('\n')[0], card.desc.split('\n').splice(1).join('\n'), card.name.match(/\((\d*)\)/)[1] * 10, function(sc) {
 							trello.put('/1/cards/' + card.id + '/name', { value: card.name + ' ' + sc }, function(err) {});
 							joinchannel(card.name.match(/(^| )([a-z\-]*)($| )/)[2], 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + sc, users);
 						});
