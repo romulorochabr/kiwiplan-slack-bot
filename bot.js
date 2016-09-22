@@ -18,6 +18,9 @@ var l = function(title, input) {
 	//console.log(string(input));
 	console.log();
 }
+var p = function(message) {
+	console.log(message);
+}
 
 // Start Slack Connection
 var controller = Botkit.slackbot({ debug : false });
@@ -129,16 +132,27 @@ var boards = {
 var inv = 1;
 
 // Trello Utility
-var tlists = function(cb) {
-	trello.get('/1/boards/' + boards.ult + '/lists', { filter: 'open', fields: 'name' }, function(err, lists) {
-		cb(lists);
+
+// - Finds trello lists by name prefix and filter
+var tlists = function(listnameprefix, filter, cb) {
+	trello.get('/1/boards/' + boards.ult + '/lists', { filter: filter, fields: 'name' }, function(err, lists) {
+		cb(_.filter(lists, function(list) { return list.name.indexOf(listnameprefix) > -1; }));
 	});
 };
-var tcards = function(listnameprefix, cb) {
-	tlists(function(lists) {
-		var devlistid = _.find(lists, function(list) { return list.name.indexOf(listnameprefix) > -1; }).id;
-		trello.get('/1/lists/' + devlistid + '/cards', { filter: 'open', fields: 'name,idMembers,desc' }, function(err, cards) {
-			cb(cards);
+
+
+// - Find trello cards grouped by list name, in lists with the first matched list (by name prefix and filter)
+// - Callback with [{list: list1, cards: [card1, card2]}, {list: list2, cards: [card3, card4]}]
+var tcards = function(listnameprefix, filter, cb) {
+	tlists(listnameprefix, filter, function(lists) {
+		var cardsByList = [];
+		async.eachSeries(lists, function(list, cbDone) {
+				trello.get('/1/lists/' + list.id + '/cards', { filter: filter, fields: 'name,idMembers,desc' }, function(err, cards) {
+				cardsByList.push({ list: list, cards: cards });
+				cbDone();
+			});
+		}, function(err) {
+			cb(cardsByList);
 		});
 	});
 };
@@ -155,10 +169,17 @@ var tassignmany = function(card, names) {
 	trello.put('/1/cards/' + card.id + '/idMembers', { value: userstoassign }, function(err) {});
 }
 
+
 // - Find code from card
 var tcode = function(card) {
 	return card.name.match(/(^| )([a-z1-9]*-[a-z1-9\-]*)($| )/)[2];
 };
+
+// - Find size from card
+var tsize = function(card) {
+	var matcher = card.name.match(/\(([\.\d]*)\)/);
+	return matcher ? matcher[1] : null;
+}
 
 // - Find scm from card
 // FIXME This might match on a Kall number which still needs SCM created
@@ -170,8 +191,8 @@ var tscm = function(card) {
 // - Find card by code
 // - cb(card)
 var tfcode = function(code, cb) {
-	tcards('Dev Sprint', function(cards) {
-		cb(_.find(cards, function(card) { return tcode(card) == code; }));
+	tcards('Dev Sprint', 'open', function(cards) {
+		cb(_.find(cards[0].cards, function(card) { return tcode(card) == code; }));
 	});
 };
 
@@ -310,6 +331,7 @@ var newscm = function(user, title, desc, hours, cb) {
 }
 
 // Slack Utility
+
 // - Join channel if exists, create if doesn't
 // - name : Name of channel to join (may be new)
 // - purpose : Purpose and Topic to set on the channel
@@ -334,17 +356,17 @@ var channelname = function(id, cb) {
 	});
 };
 
+// - Get nth argument for the slack message
+var messagearg = function(message, arg) {
+	return _.split(message.text, ' ')[arg]
+}
+
+
+// DM
+
 // DM Ping
 controller.hears('Hi', ['direct_message'], function(bot, message) {
 	bot.reply(message, 'Hi');
-});
-
-// DM Trello
-controller.hears('trello', ['direct_message'], function(bot, message) {
-	tcards('Dev Sprint', function(cards) {
-		var mycards = _.filter(cards, function(card) { return _.includes(card.idMembers, s2t(message.user)) });
-		bot.reply(message, string(_.map(mycards, 'name')));
-	});
 });
 
 // DM SCM Alive
@@ -359,13 +381,30 @@ controller.hears('scm', ['direct_message'], function(bot, message) {
 
 // DM Save
 controller.hears('save', ['direct_message'], function(bot, message) {
-	data.dmSave = _.split(message.text, ' ')[1];
+	data.dmSave = messagearg(message, 1);
 	save();
 });
 
 // DM Data
 controller.hears('data', ['direct_message'], function(bot, message) {
 	bot.reply(message, JSON.stringify(data,null,2));
+});
+
+// DM reviewsize
+controller.hears('reviewsize', ['direct_message'], function(bot, message) {
+        var size = messagearg(message, 1);
+	tcards('Accepted Sprint', 'all', function(cardsByList) {
+		var cards = _.reduceRight(cardsByList, function(flattened, other) {
+			_.each(other.cards, function(card) {
+				if (tsize(card) == size) {
+					flattened.push(other.list.name + ' - ' +  card.name);
+				}
+			});
+			return flattened;
+		}, []);
+		bot.reply(message, cards.join('\n'));
+	});
+
 });
 
 // Ambient Handler
@@ -584,29 +623,29 @@ controller.on('bot_message', function(bot, message) {
 // SCM Integration
 var scmusers = ['haoyang', 'ushal'];
 setInterval(function() {
-	tcards('Dev', function(cards) {
+	tcards('Dev', 'open', function(cards) {
 		// XXX This implementation is a bit unpleasant
 		var userstoassign = _.clone(scmusers);
 		var priorityassignee = _.clone(scmusers);
 		for (var i = 0; i < userstoassign.length; i++) {
-			var card = cards[i];
+			var card = cards[0].cards[i];
 			if (!card) break;
 			for (var j = 0; j < card.idMembers.length; j++) {
 				_.pull(priorityassignee, t2n(card.idMembers[j]));
 			};
 		};
-		_.each(cards, function(card) {
+		_.each(cards[0].cards, function(card) {
 			if (_.isEmpty(card.idMembers)) {
 				var usertoassign = _.sample(_.isEmpty(priorityassignee) ? userstoassign : priorityassignee);
 				_.pull(priorityassignee, usertoassign);
 				_.pull(userstoassign, usertoassign);
 				if (!tscm(card)) {
-					if (!card.name.match(/\((\d*)\)/)) {
+					if (!tsize(card)) {
 						console.log('Unsized card');
 						return true;
 					}
 					else {
-						newscm(n2u(usertoassign), card.desc.split('\n')[0], card.desc.split('\n').splice(1).join('\n'), card.name.match(/\((\d*)\)/)[1] * 10, function(sc) {
+						newscm(n2u(usertoassign), card.desc.split('\n')[0], card.desc.split('\n').splice(1).join('\n'), tsize(card) * 10, function(sc) {
 							trello.put('/1/cards/' + card.id + '/name', { value: card.name + ' ' + sc }, function(err) {});
 							joinchannel(card.name.match(/(^| )([a-z\-]*)($| )/)[2], 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + sc, users);
 						});
@@ -616,7 +655,7 @@ setInterval(function() {
 					joinchannel(tcode(card), 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + tscm(card), users);
 				}
 
-				if (card.name.match(/\((\d*)\)/)[1] >= 5) {
+				if (tsize(card) >= 5) {
 					//XXX Currentlywill assign all users in the scmusers list
 					tassignmany(card,scmusers);
 					return false;
