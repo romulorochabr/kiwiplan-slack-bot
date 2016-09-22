@@ -134,14 +134,16 @@ var inv = 1;
 // Trello Utility
 
 // - Finds trello lists by name prefix and filter
+// - listnameprefix : An array of string that the list name should start with
 var tlists = function(listnameprefix, filter, cb) {
 	trello.get('/1/boards/' + boards.ult + '/lists', { filter: filter, fields: 'name' }, function(err, lists) {
-		cb(_.filter(lists, function(list) { return list.name.indexOf(listnameprefix) > -1; }));
+		cb(_.filter(lists, function(list) { return _.find(listnameprefix, function(prefix) { return list.name.indexOf(prefix) > -1 }) }));
 	});
 };
 
 
 // - Find trello cards grouped by list name, in lists with the first matched list (by name prefix and filter)
+// - listnameprefix : An array of string that the list name should start with
 // - Callback with [{list: list1, cards: [card1, card2]}, {list: list2, cards: [card3, card4]}]
 var tcards = function(listnameprefix, filter, cb) {
 	tlists(listnameprefix, filter, function(lists) {
@@ -172,7 +174,8 @@ var tassignmany = function(card, names) {
 
 // - Find code from card
 var tcode = function(card) {
-	return card.name.match(/(^| )([a-z1-9]*-[a-z1-9\-]*)($| )/)[2];
+	var matcher = card.name.match(/(^| )([a-z1-9\-]*)($| )/);
+	return matcher ? matcher[2] : null;
 };
 
 // - Find size from card
@@ -191,7 +194,7 @@ var tscm = function(card) {
 // - Find card by code
 // - cb(card)
 var tfcode = function(code, cb) {
-	tcards('Dev Sprint', 'open', function(cards) {
+	tcards(['Dev Sprint'], 'open', function(cards) {
 		cb(_.find(cards[0].cards, function(card) { return tcode(card) == code; }));
 	});
 };
@@ -393,11 +396,11 @@ controller.hears('data', ['direct_message'], function(bot, message) {
 // DM reviewsize
 controller.hears('reviewsize', ['direct_message'], function(bot, message) {
         var size = messagearg(message, 1);
-	tcards('Accepted Sprint', 'all', function(cardsByList) {
+	tcards(['Accepted Sprint', 'QA Sprint', 'Dev Sprint'], 'all', function(cardsByList) {
 		var cards = _.reduceRight(cardsByList, function(flattened, other) {
 			_.each(other.cards, function(card) {
 				if (tsize(card) == size) {
-					flattened.push(other.list.name + ' - ' +  card.name);
+					flattened.push(other.list.name + '\t-\t*' +  tcode(card) + '*');
 				}
 			});
 			return flattened;
@@ -623,7 +626,7 @@ controller.on('bot_message', function(bot, message) {
 // SCM Integration
 var scmusers = ['haoyang', 'ushal'];
 setInterval(function() {
-	tcards('Dev', 'open', function(cards) {
+	tcards(['Dev'], 'open', function(cards) {
 		// XXX This implementation is a bit unpleasant
 		var userstoassign = _.clone(scmusers);
 		var priorityassignee = _.clone(scmusers);
