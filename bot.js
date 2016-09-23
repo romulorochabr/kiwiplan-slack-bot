@@ -423,6 +423,7 @@ controller.hears('newsize', ['direct_message'], function(bot, message) {
                         }
                         return reduced;
                 }, []);
+		console.log(cards);
 		bot.reply(message, cards.join('\n'));
 	});
 
