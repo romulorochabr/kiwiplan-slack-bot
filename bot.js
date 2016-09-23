@@ -397,14 +397,32 @@ controller.hears('data', ['direct_message'], function(bot, message) {
 controller.hears('reviewsize', ['direct_message'], function(bot, message) {
         var size = messagearg(message, 1);
 	tcards(['Accepted Sprint', 'QA Sprint', 'Dev Sprint'], 'all', function(cardsByList) {
-		var cards = _.reduceRight(cardsByList, function(flattened, other) {
-			_.each(other.cards, function(card) {
+		var cards = _.reduceRight(cardsByList, function(reduced, cardsWithList) {
+			_.each(cardsWithList.cards, function(card) {
 				if (tsize(card) == size) {
-					flattened.push(other.list.name + '\t-\t*' +  tcode(card) + '*');
+					reduced.push(cardsWithList.list.name + '\t-\t*' +  tcode(card) + '*');
 				}
 			});
-			return flattened;
+			return reduced;
 		}, []);
+		bot.reply(message, cards.join('\n'));
+	});
+
+});
+
+// DM newsize
+// Output:
+// 0.5 - story1 story2 story3
+// 1   - story4 story5 story6
+controller.hears('newsize', ['direct_message'], function(bot, message) {
+	tcards(['Accepted Sprint', 'QA Sprint', 'Dev Sprint'], 'all', function(cardsByList) {
+		var cardsBySize = _.chain(cardsByList).map('cards').flatten().groupBy(tsize);
+		var cards = _.reduce(cardsBySize, function(reduced, cardsForSize, size) {
+                        if (size && size > 0) {
+                            reduced.push(size + ' - ' + _.chain(cardsForSize).map(tcode).sample(5).join('  ').value());
+                        }
+                        return reduced;
+                }, []);
 		bot.reply(message, cards.join('\n'));
 	});
 
