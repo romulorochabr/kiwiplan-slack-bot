@@ -416,14 +416,13 @@ controller.hears('reviewsize', ['direct_message'], function(bot, message) {
 // 1   - story4 story5 story6
 controller.hears('newsize', ['direct_message'], function(bot, message) {
 	tcards(['Accepted Sprint', 'QA Sprint', 'Dev Sprint'], 'all', function(cardsByList) {
-		var cardsBySize = _.chain(cardsByList).map('cards').flatten().groupBy(tsize);
+		var cardsBySize = _.chain(cardsByList).map('cards').flatten().groupBy(tsize).value();
 		var cards = _.reduce(cardsBySize, function(reduced, cardsForSize, size) {
-                        if (size && size > 0) {
-                            reduced.push(size + ' - ' + _.chain(cardsForSize).map(tcode).sample(5).join('  ').value());
+			if (size && size > 0) {
+                            reduced.push(size + ' - ' + _.chain(cardsForSize).map(tcode).sampleSize(5).join('  ').value());
                         }
                         return reduced;
                 }, []);
-		console.log(cards);
 		bot.reply(message, cards.join('\n'));
 	});
 
