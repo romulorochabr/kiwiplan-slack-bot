@@ -32,9 +32,46 @@ var save = function() {
 	jsonfile.writeFileSync('./data.json', data);
 }
 
+// XXX Apply read data onto initdata
 if (fs.existsSync('./data.json') == false) {
 	var initdata = {
-		deployStatus : 'none'
+		deployStatus : 'none',
+		users : {
+			haoyang: {
+				name: 'haoyang',
+				slack: 'U0HMLSLKY',
+				trello: '53ed667b3f5d4e4c4e1c5902',
+				scm: 9118,
+				scmcookie: '',
+				slacktoken: process.env.slacktokenhaoyang,
+				gitlabtoken: process.env.gitlabtokenhaoyang,
+				gitlab: 2
+			},
+			ushal: {
+				name: 'ushal',
+				slack: 'U0HMMNE9W',
+				trello: '563fc2beb2e713d534da52ce',
+				scm: 11729,
+				scmcookie: '',
+				gitlabtoken: process.env.gitlabtokenushal,
+				gitlab: 4
+			},
+			melody: {
+				name: 'melody',
+				slack: 'U0J4CGQKW',
+				trello: '5578c1e12f582a666e7bca4a',
+				gitlabtoken: process.env.gitlabtokenmelody,
+				gitlab: 8
+			},
+			jack: {
+				name: 'jack',
+				slack: 'U0M20CGS1'
+			},
+			kevin: {
+				name: 'kevin',
+				gitlab: 5
+			}
+		}
 	}
 	jsonfile.writeFileSync('./data.json', initdata);
 }
@@ -51,42 +88,7 @@ var data = jsonfile.readFileSync('./data.json');
 var trello = new Trello('3c3032368c3c88ac3ba8799f3e37d935', 'ee99dec582dbbbacf02f864f93cc3c2771d521203c36563f482f886734f22f6c');
 
 // User IDs
-var users = {
-	haoyang: {
-		name: 'haoyang',
-		slack: 'U0HMLSLKY',
-		trello: '53ed667b3f5d4e4c4e1c5902',
-		scm: 9118,
-		scmcookie: process.env.scmcookiehaoyang,
-		slacktoken: process.env.slacktokenhaoyang,
-		gitlabtoken: process.env.gitlabtokenhaoyang,
-		gitlab: 2
-	},
-	ushal: {
-		name: 'ushal',
-		slack: 'U0HMMNE9W',
-		trello: '563fc2beb2e713d534da52ce',
-		scm: 11729,
-		scmcookie: process.env.scmcookieushal,
-		gitlabtoken: process.env.gitlabtokenushal,
-		gitlab: 4
-	},
-	melody: {
-		name: 'melody',
-		slack: 'U0J4CGQKW',
-		trello: '5578c1e12f582a666e7bca4a',
-		gitlabtoken: process.env.gitlabtokenmelody,
-		gitlab: 8
-	},
-	jack: {
-		name: 'jack',
-		slack: 'U0M20CGS1'
-	},
-	kevin: {
-		name: 'kevin',
-		gitlab: 5
-	}
-};
+var users = data.users;
 var t2n = function(t) {
 	var user = _.find(users, { trello: t});
 	return user && user.name;
@@ -306,7 +308,7 @@ var trackstop = function(user, scm, cb) {
 var newscm = function(user, title, desc, hours, cb) {
 	request.post({
 		url: newscmurl,
-		form: { project: 67, iteration: 0, title: title, description: desc, applications: 70, _applications: 1, reportedRevisions: 2108, _reportedRevisions: 1, targetedRevisions: 2108, _targetedRevisions: 1, type: 'MAINTENANCE', estimatedImplementationHours: hours, priority: 'UNPRIORITISED' },
+		form: { project: 67, iteration: 0, title: title, description: desc, applications: 70, _applications: 1, reportedRevisions: 2142, _reportedRevisions: 1, targetedRevisions: 2142, _targetedRevisions: 1, type: 'MAINTENANCE', estimatedImplementationHours: hours, priority: 'UNPRIORITISED' },
 		headers: { Cookie: user.scmcookie }
 	}, function(err, res, body) {
 		var scmid = body.match(/softwareChangeId=(\d*)/)[1];
@@ -318,7 +320,7 @@ var newscm = function(user, title, desc, hours, cb) {
 			request.post({
 				url: newpturl(scmid),
 				// TODO Determine targeted rev
-				form: { title: title, description: desc, application: 70, component: 524, module: 2940, targetedRevisions: 2108, _targetedRevisions: 1, hoursEstimated: Math.round(hours / 3 * 1), assignee: user.scm },
+				form: { title: title, description: desc, application: 70, component: 524, module: 2940, targetedRevisions: 2142, _targetedRevisions: 1, hoursEstimated: Math.round(hours / 3 * 1), assignee: user.scm },
 				headers: { Cookie: user.scmcookie }
 			}, function(err, res, body) {
 				request.get({
@@ -702,12 +704,34 @@ var scmkeepalive = function() {
 		url: scmurl(39492),
 		headers: { Cookie: users.haoyang.scmcookie }
 	}, function(err, res, body) {
+		// Link inactive
+		if (!body.match(/<title>SCM - (\d{6})/)) {
+			bot.startPrivateConversation({ user: users.haoyang.slack }, function(err, convo) {
+				convo.ask('I need a new SCM cookie',function(response,convo) {
+					users.haoyang.scmcookie = response.text;
+					save();
+					convo.say('Cool.');
+					convo.next();
+				});
+			})
+		}
 		console.log("SCM Cookie renewed");
 	});
 	request.get({
 		url: scmurl(39492),
 		headers: { Cookie: users.ushal.scmcookie }
 	}, function(err, res, body) {
+		// Link inactive
+		if (!body.match(/<title>SCM - (\d{6})/)) {
+			bot.startPrivateConversation({ user: users.ushal.slack }, function(err, convo) {
+				convo.ask('I need a new SCM cookie',function(response,convo) {
+					users.ushal.scmcookie = response.text;
+					save();
+					convo.say('Cool.');
+					convo.next();
+				});
+			})
+		}
 		console.log("SCM Cookie renewed");
 	});
 };
