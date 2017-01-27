@@ -1,6 +1,7 @@
 var _ = require('lodash');
 var async = require('async');
 var fs = require('fs');
+var sshClient = require('ssh2').Client;
 var glob = require('glob');
 var request = require('request');
 var Botkit = require('botkit');
@@ -139,6 +140,33 @@ var boards = {
 // GitLab IDs
 var inv = 1;
 
+
+// Cross Server Functionality
+
+// data: { host, user, privateKey, command }
+var runssh = function(data) {
+	var conn = new sshClient();
+	conn.on('ready', function() {
+		conn.exec(data.command, function(err, stream) {
+			if (err) throw err;
+			stream.on('close', function(code, signal) {
+			    bot.reply(message, 'done');
+			    conn.end();
+			}).on('data', function(data) {
+			  console.log('STDOUT: ' + data);
+			}).stderr.on('data', function(data) {
+			  console.log('STDERR: ' + data);
+			});
+		});
+	}).connect({
+		host: data.host,
+		port: 22,
+		username: data.user,
+		privateKey: require('fs').readFileSync(data.privateKey)
+	});
+}
+
+ 
 // Trello Utility
 
 // - Finds trello lists by name prefix and filter
@@ -214,7 +242,6 @@ var tsize = function(card) {
 // - Find scm from card
 // FIXME This might match on a Kall number which still needs SCM created
 var tscm = function(card) {
-console.log(card);
 	var match = card.name.match(/\d{6}/);
 	return match ? match[0] : null;
 };
@@ -443,6 +470,29 @@ controller.hears('Hi', ['direct_message'], function(bot, message) {
 	bot.reply(message, 'hi');
 });
 
+// DM SSH Command
+controller.hears('ssh', ['direct_message'], function(bot, message) {
+	var conn = new sshClient();
+	conn.on('ready', function() {
+		conn.exec('touch /home/haoyang.feng/a', function(err, stream) {
+			if (err) throw err;
+			stream.on('close', function(code, signal) {
+			    bot.reply(message, 'done');
+			    conn.end();
+			}).on('data', function(data) {
+			  console.log('STDOUT: ' + data);
+			}).stderr.on('data', function(data) {
+			  console.log('STDERR: ' + data);
+			});
+		});
+	}).connect({
+		host: 'nzqms',
+		port: 22,
+		username: 'haoyang.feng',
+		privateKey: require('fs').readFileSync('/home/haoyang.feng/.ssh/id_rsa')
+	});
+});
+
 controller.hears('goal', ['direct_message'], function(bot, message) {
         Spreadsheet.load({
 		debug: true,
@@ -451,6 +501,7 @@ controller.hears('goal', ['direct_message'], function(bot, message) {
         });
 	bot.reply(message, 'hi');
 });
+
 
 // DM SCM Alive
 controller.hears('scm', ['direct_message'], function(bot, message) {
@@ -692,7 +743,7 @@ controller.on('ambient', function(bot, message) {
 	  }
 	  else if (message.text == 'unlock') {
 		if (data.deployStatus == 'pending') {
-			fs.writeFile('/vmlock/ssrequest', '');
+                        runssh({host:'nzvult', user:'haoyang.feng', privateKey:'/home/haoyang.feng/.ssh/id_rsa',command:'touch /vmlock/ssrequest' });
 		}
 		data.deployStatus = 'none';
 		save();
@@ -717,8 +768,7 @@ controller.on('ambient', function(bot, message) {
 		channelname(message.channel, function(name) {
 			tfcode(name, function(card) {
 				findmr(tcode(card), function(mr) {
-					tassign(card, g2u(mr.author.id).name);
-					bot.reply(message, '<@' + g2u(mr.author.id).name + '>: Your card has been rejected. :cold_sweat:');
+					tassign(card, g2u(mr.author.id).name); bot.reply(message, '<@' + g2u(mr.author.id).name + '>: Your card has been rejected. :cold_sweat:');
 				});
 			});
 		});
@@ -753,7 +803,7 @@ controller.on('bot_message', function(bot, message) {
 	// Listen to push to dev to create ss request
 	if (message.channel == channels.gitlab && message.text.indexOf('pushed to branch <http://NZVULT/haoyang.feng/inv/commits/dev|dev>') > 0) {
 		if (data.deployStatus == 'none') {
-			fs.writeFile('/vmlock/ssrequest', '');
+                        runssh({host:'nzvult', user:'haoyang.feng', privateKey:'/home/haoyang.feng/.ssh/id_rsa',command:'touch /vmlock/ssrequest' });
 		}
 		else {
 			data.deployStatus = 'pending';
@@ -777,10 +827,6 @@ setInterval(function() {
 					});
 				}
 				if (!tscm(card) && !_.isEmpty(card.idMembers) && card.idMembers == n2t('ushal')) {
-console.log("===============================");
-console.log(card.id);
-console.log(card.name);
-console.log(card.desc.split('\n')[0]);
 					trello.put('/1/cards/' + card.id + '/name', { value: card.name + ' 000' }, function(err) {} ) 
 
                                 }
@@ -876,6 +922,7 @@ scmkeepalive();
 setInterval(scmkeepalive, 3600000);
 
 // VM Warnings
+/*
 var vmids = ['haoyang', 'ushal', 'michelle', 'aaron'];
 setInterval(function() {
 	glob('/vmlock/*.8.41.1', null, function(err, files) {
@@ -887,3 +934,4 @@ setInterval(function() {
 		});
 	})
 }, 300000);
+*/
