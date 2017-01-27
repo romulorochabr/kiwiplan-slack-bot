@@ -389,7 +389,7 @@ var trackstop = function(user, scm, cb) {
 var newscm = function(user, title, desc, hours, cb) {
 	request.post({
 		url: newscmurl,
-		form: { project: 67, iteration: 0, title: title, description: desc, applications: 70, _applications: 1, reportedRevisions: 2246, _reportedRevisions: 1, targetedRevisions: 2246, _targetedRevisions: 1, type: 'MAINTENANCE',estimatedDesignHours: 3, estimatedImplementationHours: 30, priority: 'UNPRIORITISED' },
+		form: { project: 67, iteration: 0, title: title, description: desc, applications: 70, _applications: 1, reportedRevisions: 2246, _reportedRevisions: 1, targetedRevisions: 2246, _targetedRevisions: 1, type: 'MAINTENANCE',estimatedDesignHours: 1, estimatedImplementationHours: 30, priority: 'UNPRIORITISED' },
 		headers: { Cookie: user.scmcookie }
 	}, function(err, res, body) {
 	if (err || body == null) {
