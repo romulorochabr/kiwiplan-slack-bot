@@ -9,7 +9,7 @@ var Trello = require('node-trello');
 var Chess = require('chess.js').Chess;
 var chess = null;
 var jsonfile = require('jsonfile');
-var Spreadsheet = require('edit-google-spreadsheet');
+//var Spreadsheet = require('edit-google-spreadsheet');
 
 var string = function(input) {
 	return JSON.stringify(input, null, 2);
@@ -493,6 +493,7 @@ controller.hears('ssh', ['direct_message'], function(bot, message) {
 	});
 });
 
+/*
 controller.hears('goal', ['direct_message'], function(bot, message) {
         Spreadsheet.load({
 		debug: true,
@@ -501,6 +502,7 @@ controller.hears('goal', ['direct_message'], function(bot, message) {
         });
 	bot.reply(message, 'hi');
 });
+*/
 
 
 // DM SCM Alive
@@ -568,6 +570,12 @@ controller.hears('newsize', ['direct_message'], function(bot, message) {
 		bot.reply(message, cards.join('\n'));
 	});
 
+});
+
+// DM Deploy
+// Creates ssrequest on nzvult
+controller.hears('deploy', ['direct_message'], function(bot, message) {
+	runssh({host:'nzvult', user:'bruce', privateKey:'/home/bruce/.ssh/id_rsa',command:'touch /vmlock/ssrequest' });
 });
 
 // Ambient Handler
@@ -743,7 +751,7 @@ controller.on('ambient', function(bot, message) {
 	  }
 	  else if (message.text == 'unlock') {
 		if (data.deployStatus == 'pending') {
-                        runssh({host:'nzvult', user:'haoyang.feng', privateKey:'/home/haoyang.feng/.ssh/id_rsa',command:'touch /vmlock/ssrequest' });
+                        runssh({host:'nzvult', user:'bruce', privateKey:'/home/bruce/.ssh/id_rsa',command:'touch /vmlock/ssrequest' });
 		}
 		data.deployStatus = 'none';
 		save();
@@ -803,7 +811,7 @@ controller.on('bot_message', function(bot, message) {
 	// Listen to push to dev to create ss request
 	if (message.channel == channels.gitlab && message.text.indexOf('pushed to branch <http://NZVULT/haoyang.feng/inv/commits/dev|dev>') > 0) {
 		if (data.deployStatus == 'none') {
-                        runssh({host:'nzvult', user:'haoyang.feng', privateKey:'/home/haoyang.feng/.ssh/id_rsa',command:'touch /vmlock/ssrequest' });
+                        runssh({host:'nzvult', user:'bruce', privateKey:'/home/bruce/.ssh/id_rsa',command:'touch /vmlock/ssrequest' });
 		}
 		else {
 			data.deployStatus = 'pending';
