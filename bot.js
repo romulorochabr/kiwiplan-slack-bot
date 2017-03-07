@@ -26,8 +26,16 @@ var p = function(message) {
 
 // Start Slack Connection
 var controller = Botkit.slackbot({ debug : false });
-controller.setupWebserver(process.env.PORT || 3000);
+
 var bot = controller.spawn({token : process.env.token });
+
+controller.setupWebserver(process.env.PORT || 3000, function(err, webserver) {
+	webserver.post('/verdaccio', function(req, res) {
+		bot.say({ channel: channels.npm, text: req.body.text });
+		res.send('Success');
+	});
+});
+
 bot.startRTM();
 
 var save = function() {
@@ -65,14 +73,29 @@ if (fs.existsSync('./data.json') == false) {
 				gitlabtoken: process.env.gitlabtokenmelody,
 				gitlab: 8
 			},
-			jack: {
-				name: 'jack',
+			bruce: {
+				name: 'bruce',
 				slack: 'U0M20CGS1'
 			},
 			kevin: {
 				name: 'kevin',
 				gitlab: 5
-			}
+			},
+			romulo: {
+				name: 'romulo',
+				slack: 'U3Z0U9JAU',
+				trello: '5893a8c5268e3401814a5e5d',
+				scmcookie: '',
+				scm: 9118, // TODO
+				gitlabtoken: process.env.gitlabtokenromulo, // TODO
+				gitlab: 19,
+			},
+			martina: {
+				name: 'martina',
+				slack: 'U2481R6DT',
+				trello: '55f7534981e375a807e39c94',
+				gitlabtoken: process.env.gitlabtokenmelody
+			},
 		}
 	}
 	jsonfile.writeFileSync('./data.json', initdata);
@@ -88,6 +111,8 @@ var data = jsonfile.readFileSync('./data.json');
 // Access Trello
 // TODO XXX Is this safe?
 var trello = new Trello('3c3032368c3c88ac3ba8799f3e37d935', 'ee99dec582dbbbacf02f864f93cc3c2771d521203c36563f482f886734f22f6c');
+
+var vmurl = "http://nzcloud.kiwiplan.co.nz:4567";
 
 // User IDs
 var users = data.users;
@@ -119,7 +144,7 @@ var g2u = function(g) {
 
 // Slack IDs
 var channels = {
-	testjack: 'C14N0EPGC',
+	testbruce: 'G2ZGADV1P',
 	dev: 'C1AT7J692',
 	vm: 'C16HEPJTV',
 	qapreview: 'C0M20LYJF',
@@ -127,6 +152,7 @@ var channels = {
 	chess: 'C255F30FP',
 	gitlab: 'C0SENG8AY',
         vult:'G3959ARSN',
+	npm:'C3ZNWF8HF',
 };
 var bots = {
 	trello: 'B0HSGEXF1'
@@ -434,7 +460,7 @@ var joinchannel = function(name, purpose) {
 	request.post({ url: 'https://slack.com/api/channels.join', form: { token: users.haoyang.slacktoken, name: name } }, function(err, res, body) {
 		var bodyjson = eval('(' + body + ')');
 		var channelid = bodyjson.channel.id;
-                var members = ['haoyang', 'ushal', 'melody', 'kevin', 'jack'];
+                var members = ['haoyang', 'martina', 'romulo', 'kevin', 'bruce'];
 		_.each(members, function(member) {
 			request.post({ url: 'https://slack.com/api/channels.invite', form: { token: users.haoyang.slacktoken, channel: channelid, user: n2s(member) } });
 		});
@@ -468,6 +494,10 @@ var messagearg = function(message, arg) {
 // DM Ping
 controller.hears('Hi', ['direct_message'], function(bot, message) {
 	bot.reply(message, 'hi');
+});
+
+controller.hears('testbruce', ['direct_message'], function(bot, message) {
+	bot.say({ channel: channels.testbruce, text: 'You called me?' });
 });
 
 // DM SSH Command
@@ -578,14 +608,105 @@ controller.hears('deploy', ['direct_message'], function(bot, message) {
 	runssh({host:'nzvult', user:'bruce', privateKey:'/home/bruce/.ssh/id_rsa',command:'touch /vmlock/ssrequest' });
 });
 
+// DM List VM
+// List all my vms
+controller.hears('vm list', ['direct_message'], function(bot, message) {
+	request.post({
+		url: vmurl + '/login',
+		form: { username: 'haoyang.feng', password: 'password' }
+	}, function(err, res, body) {
+		var cookie = res.headers['set-cookie']
+		request.get({
+			url: vmurl + '/protected/myvms.json',
+			headers: { Cookie: cookie }
+		}, function(err, res, body) {
+			var bodyjson = eval('(' + body + ')')
+			var vms = _.map(bodyjson, vm => `*${vm.hostName}* ${vm.osType} ${vm.ipAddr} ${vm.state}`).join('\n')
+			bot.reply(message, vms)
+		})
+	})
+})
+
+// DM New VM
+// Create a new VM
+controller.hears('vm new', ['direct_message'], function(bot, message) {
+	var vmprofile = {
+	      "userId": "haoyang.feng",
+	      "hostName": "haoyang",
+	      "osType": "linux",
+	      "bundleName": "default",
+	      "linux": {
+		 "map": {
+		    "serverName": "nzboom",
+		    "serverPath": " /src",
+		    "serverUserName": "ssd",
+		    "serverPassword": "mapadm99",
+		    "fileName": "kiwi_8.51.01jul2017_dev",
+		    "protocol": "scp",
+		    "isRegularFile": "false",
+		    "charset": null
+		 },
+		 "mes": {
+		    "serverName": "nzjenkins",
+		    "serverPath": " /data/installers/latestsingleinstaller/",
+		    "serverUserName": "installers",
+		    "serverPassword": "installers",
+		    "fileName": "mes-8.51.1*.sh",
+		    "protocol": "scp",
+		    "isRegularFile": "True",
+		    "charset": null
+		 },
+		 "dump": {
+		    "serverName": "sim19.kiwiplan.us",
+		    "serverPath": "/SIM/home/sim",
+		    "serverUserName": "sim",
+		    "serverPassword": "simkiwi",
+		    //"fileName": "ostraleka.02151659.dump.tar",
+		    "protocol": "scp",
+		    "isRegularFile": "True",
+		    "charset": null
+		    //"charset": "latin2"
+		 },
+		 "mesProducts": "TSS ULT",
+		 "mesFeatures": "",
+		 "mesLicence": null
+	      },
+	      "windows": null,
+	      "filePath": "/home/mao.li/cloud.data.home/machines/haoyang/kiwi.ini"
+	}
+	var askDatasetName = function(err, convo) {
+		convo.ask('dataset name?', function(response, convo) {
+			convo.say('Cool')
+			vmprofile.linux.dump.fileName = response
+			request.post({
+				url: vmurl + '/login',
+				form: { username: 'haoyang.feng', password: 'password' }
+			}, function(err, res, body) {
+				var cookie = res.headers['set-cookie']
+				request.post({
+					url: vmurl + '/protected/myvms.json',
+					headers: { Cookie: cookie }
+				}, function(err, res, body) {
+					var bodyjson = eval('(' + body + ')')
+					var vms = _.map(bodyjson, vm => `*${vm.hostName}* ${vm.osType} ${vm.ipAddr} ${vm.state}`).join('\n')
+					bot.reply(message, vms)
+				})
+			})
+			convo.next()
+		})
+	}
+	bot.startConversation(message, askHostName)
+
+})
+
 // Ambient Handler
 controller.on('ambient', function(bot, message) {
 	// Global commands
 	if (message.text == '.channelid') {
 		bot.reply(message, message.channel);
 	}
-	// Test Jack
-	else if (message.channel == channels.testjack) {
+	// Test Bruce
+	else if (message.channel == channels.testbruce) {
 		if (message.text.indexOf("echo") == 0) {
 			bot.reply(message,{
 				text: JSON.stringify(message, null, 2),
@@ -596,11 +717,19 @@ controller.on('ambient', function(bot, message) {
 		else if (message.text.indexOf("log") == 0) {
 			console.log(JSON.stringify(message, null, 2));
 		}
+		else if (message.text.indexOf("gitlabusers") == 0) {
+			request.get({
+				url: 'http://nzvult/api/v3/users',
+				headers: { 'PRIVATE-TOKEN': users.haoyang.gitlabtoken }
+			}, function(err, res, body) {
+				bot.reply(message,{ text: JSON.stringify(res, null, 2) });
+			});
+		}
 	}
 	// Chess
 	else if (message.channel == channels.chess) {
 		if (message.text.indexOf('chess') == 0) {
-			chessplayers = _.shuffle(['haoyang', 'ushal']);
+			chessplayers = _.shuffle(['haoyang', 'romulo']);
 			chess = new Chess();
 			bot.reply(message, '<@' + chessplayers[0] + '>: Your turn (' + chess.turn() + ') \n http://www.fen-to-image.com/image/44/double/coords/' + _.split(chess.fen(), ' ')[0] + Date.now());
 			//bot.reply(message, '<@' + chessplayers[0] + '>: Your turn (' + chess.turn() + ') \n ```' + chess.ascii() + '``` \n http://www.fen-to-image.com/image/44/double/coords/' + chess.fen() + Date.now());
@@ -648,8 +777,8 @@ controller.on('ambient', function(bot, message) {
 		channelname(message.channel, function(name) {
 			tfcodeindev(name, function(card) {
                                 if (card) {
-					var reviewer = 'ushal';
-					if (s2u(message.user).name == 'ushal') {
+					var reviewer = 'romulo';
+					if (s2u(message.user).name == 'romulo') {
 						reviewer = 'haoyang';
 					}
 					tassign(card, reviewer);
@@ -663,8 +792,8 @@ controller.on('ambient', function(bot, message) {
 	else if (message.text == 'reviewed') {
 		channelname(message.channel, function(name) {
 			tfcodeindev(name, function(card) {
-				var coder = 'ushal';
-				if (s2u(message.user).name == 'ushal') {
+				var coder = 'romulo';
+				if (s2u(message.user).name == 'romulo') {
 					coder = 'haoyang'
 				}
 				tassign(card, coder);
@@ -677,8 +806,8 @@ controller.on('ambient', function(bot, message) {
 	else if (message.text == 'review') {
 		channelname(message.channel, function(name) {
 			tfcodeindev(name, function(card) {
-				var reviewer = 'ushal';
-				if (s2u(message.user).name == 'ushal') {
+				var reviewer = 'romulo';
+				if (s2u(message.user).name == 'romulo') {
 					reviewer = 'haoyang';
 				}
 				tassign(card, reviewer);
@@ -691,8 +820,8 @@ controller.on('ambient', function(bot, message) {
 	else if (message.text == 'merge') {
 		channelname(message.channel, function(name) {
 			tfcodeindev(name, function(card) {
-				var coder = 'ushal';
-				if (s2u(message.user).name == 'ushal') {
+				var coder = 'romulo';
+				if (s2u(message.user).name == 'romulo') {
 					coder = 'haoyang'
 				}
 				tassign(card, coder);
@@ -736,7 +865,7 @@ controller.on('ambient', function(bot, message) {
 		channelname(message.channel, function(name) {
 			tfcodeindev(name, function(card) {
 				bot.reply(message, '<@melo>: Please test. (Please type teststart when you begin)');
-				tassign(card, 'melody');
+				tassign(card, 'martina');
 			});
 		});
 		
@@ -785,7 +914,7 @@ controller.on('ambient', function(bot, message) {
 		channelname(message.channel, function(name) {
 			tfcode(name, function(card) {
 				findbranch(tcode(card), function(branches) {
-					async.eachSeries(_.map(branches, 'name'), _.partial(mergemr, users.melody), function(err) {
+					async.eachSeries(_.map(branches, 'name'), _.partial(mergemr, users.martina), function(err) {
 						bot.reply(message, '<@melo>: Code has been accepted.');
 					});
 				});
@@ -821,7 +950,7 @@ controller.on('bot_message', function(bot, message) {
 });
 
 // SCM Integration
-var scmusers = ['haoyang', 'ushal'];
+var scmusers = ['haoyang', 'romulo'];
 
 //Create SCM and DS task for cards in Product Backlog Unrefined list assigned to Haoyang (XXX Change to ANY user that is PO)
 setInterval(function() {
@@ -834,7 +963,7 @@ setInterval(function() {
 					joinchannel(card.name, 'https://kall.kiwiplan.co.nz/scm/softwareChangeViewer.do?id=' + sc);
 					});
 				}
-				if (!tscm(card) && !_.isEmpty(card.idMembers) && card.idMembers == n2t('ushal')) {
+				if (!tscm(card) && !_.isEmpty(card.idMembers) && card.idMembers == n2t('romulo')) {
 					trello.put('/1/cards/' + card.id + '/name', { value: card.name + ' 000' }, function(err) {} ) 
 
                                 }
@@ -910,13 +1039,13 @@ var scmkeepalive = function() {
 	});
 	request.get({
 		url: scmurl(39492),
-		headers: { Cookie: users.ushal.scmcookie }
+		headers: { Cookie: users.romulo.scmcookie }
 	}, function(err, res, body) {
 		// Link inactive
 		if (!body.match(/<title>SCM - (\d{6})/)) {
-			bot.startPrivateConversation({ user: users.ushal.slack }, function(err, convo) {
+			bot.startPrivateConversation({ user: users.romulo.slack }, function(err, convo) {
 				convo.ask('I need a new SCM cookie',function(response,convo) {
-					users.ushal.scmcookie = response.text;
+					users.romulo.scmcookie = response.text;
 					save();
 					convo.say('Cool.');
 					convo.next();
@@ -931,7 +1060,7 @@ setInterval(scmkeepalive, 3600000);
 
 // VM Warnings
 /*
-var vmids = ['haoyang', 'ushal', 'michelle', 'aaron'];
+var vmids = ['haoyang', 'romulo', 'michelle', 'aaron'];
 setInterval(function() {
 	glob('/vmlock/*.8.41.1', null, function(err, files) {
 		fs.stat(files[0], function(err, stats) {
